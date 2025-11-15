@@ -152,15 +152,44 @@ int sd_append_file(const char *filename, const char *text) {
 	return (res == FR_OK && bw == strlen(text)) ? FR_OK : FR_DISK_ERR;
 }
 
-int sd_read_file(const char *filename, char *buffer, UINT bufsize, UINT *bytes_read) {
+FIL sd_open_file(const char *filename) {
 	FIL file;
-	*bytes_read = 0;
 
 	FRESULT res = f_open(&file, filename, FA_READ);
 	if (res != FR_OK) {
 		printf("f_open failed with code: %d\r\n", res);
+		return;
+	}
+	return file;
+}
+
+int sd_read(const char *filename, char *buffer, UINT bufsize, UINT *bytes_read, FIL *file) {
+	*bytes_read = 0;
+
+	res = f_read(&file, buffer, bufsize - 1, bytes_read);
+	if (res != FR_OK) {
+		printf("f_read failed with code: %d\r\n", res);
+		f_close(&file);
 		return res;
 	}
+	buffer[*bytes_read] = '\0';
+
+	printf("Read %u bytes from %s\r\n", *bytes_read, filename);
+	return FR_OK;
+}
+
+int sd_close_file(const char *filename, FIL *file) {
+	res = f_close(&file);
+		if (res != FR_OK) {
+			printf("f_close failed with code: %d\r\n", res);
+			return res;
+		}
+	return FR_OK;
+}
+
+int sd_read_file(const char *filename, char *buffer, UINT bufsize, UINT *bytes_read) {
+	FIL file;
+	*bytes_read = 0;
 
 	res = f_read(&file, buffer, bufsize - 1, bytes_read);
 	if (res != FR_OK) {

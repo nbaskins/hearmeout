@@ -28,6 +28,10 @@ int sd_unmount(void);
 // Basic file operations
 int sd_write_file(const char *filename, const char *text);
 int sd_append_file(const char *filename, const char *text);
+FIL sd_open_file(const char *filename);
+int sd_read(const char *filename, char *buffer, UINT bufsize, UINT *bytes_read, FIL *file);
+int sd_close_file(const char *filename);
+
 int sd_read_file(const char *filename, char *buffer, UINT bufsize, UINT *bytes_read);
 int sd_delete_file(const char *filename);
 int sd_rename_file(const char *oldname, const char *newname);
