@@ -46,14 +46,14 @@ int resample_CCR(int input) {
 }
 
 // Minimal WAV header skip: find "data" chunk and its size.
-static FRESULT wav_seek_to_data(uint32_t *data_bytes_out)
+FRESULT wav_seek_to_data(uint32_t *data_bytes_out)
 {
     typedef struct { char id[4]; uint32_t size; } chunk_t;
     uint8_t  hdr[12];
     UINT     br;
 
     // Read RIFF header (12 bytes): "RIFF", size, "WAVE"
-    FRESULT fr = f_read(&file, hdr, sizeof(hdr), &br);
+    fr = f_read(&file, hdr, sizeof(hdr), &br);
     if (fr != FR_OK || br != sizeof(hdr)) return FR_DISK_ERR;
     if (memcmp(hdr, "RIFF", 4) || memcmp(hdr+8, "WAVE", 4)) return FR_INT_ERR;
 
@@ -73,13 +73,14 @@ static FRESULT wav_seek_to_data(uint32_t *data_bytes_out)
 }
 
 // Fill a CCR buffer from the WAV file
-static void fill_from_wav(uint16_t *dst){
+void fill_from_wav(uint16_t *dst){
     uint16_t chunk[BUFFER_SIZE];
     UINT got = 0;
 
     fr = f_read(&file, chunk, sizeof(chunk), &got);
 
     if (fr != FR_OK || got == 0) {	// EOF or error: pad zeros
+        int produced = 0;
 		while (produced < BUFFER_SIZE) dst[produced++] = 0;
 		break;
 	}
@@ -103,7 +104,7 @@ void init() {
 
 	uint32_t data_bytes = 0;
 	fr = wav_seek_to_data(&data_bytes);
-	if (fr != FR_OK) { printf("f_open failed with code: %d\r\n", fr); //some other error handling?}
+	if (fr != FR_OK) { printf("f_open failed with code: %d\r\n", fr); /*some other error handling?*/}
 
 	//fill consumer buffer for the first time
 	//producer buffer already populated with new data
