@@ -166,7 +166,7 @@ FIL sd_open_file(const char *filename) {
 int sd_read(const char *filename, char *buffer, UINT bufsize, UINT *bytes_read, FIL *file) {
 	*bytes_read = 0;
 
-	res = f_read(&file, buffer, bufsize - 1, bytes_read);
+	FRESULT res = f_read(&file, buffer, bufsize - 1, bytes_read);
 	if (res != FR_OK) {
 		printf("f_read failed with code: %d\r\n", res);
 		f_close(&file);
@@ -179,7 +179,7 @@ int sd_read(const char *filename, char *buffer, UINT bufsize, UINT *bytes_read, 
 }
 
 int sd_close_file(const char *filename, FIL *file) {
-	res = f_close(&file);
+	FRESULT res = f_close(&file);
 		if (res != FR_OK) {
 			printf("f_close failed with code: %d\r\n", res);
 			return res;
@@ -191,7 +191,7 @@ int sd_read_file(const char *filename, char *buffer, UINT bufsize, UINT *bytes_r
 	FIL file;
 	*bytes_read = 0;
 
-	res = f_read(&file, buffer, bufsize - 1, bytes_read);
+	FRESULT res = f_read(&file, buffer, bufsize - 1, bytes_read);
 	if (res != FR_OK) {
 		printf("f_read failed with code: %d\r\n", res);
 		f_close(&file);

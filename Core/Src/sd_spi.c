@@ -28,8 +28,9 @@
 extern SPI_HandleTypeDef hspi1;
 #define SD_SPI_HANDLE hspi1
 
-#define SD_CS_LOW()     HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET)
-#define SD_CS_HIGH()    HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET)
+
+#define SD_CS_LOW()     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET)
+#define SD_CS_HIGH()    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET)
 
 /***************************************************************
  * 🚫 DO NOT MODIFY BELOW THIS LINE
