@@ -1,20 +1,22 @@
-#include <stdbool.h>
-#include <string.h>
-#include <stdio.h>
+#include <cstdint>
+#include <string>
+ #include <cstring>
 #include "main.h"
 #include "fatfs.h"
 #include "sd_functions.h"
 //#include "transducer.hpp"
 //#include "sd.hpp"
 
+extern TIM_HandleTypeDef htim1;
+
 #define BUFFER_SIZE 2048 //at 40kHz: 2048 samples = 51.2ms per sd card transfer. Is this too fast??
 #define CSPORT GPIOC
 #define CSPIN GPIO_PIN_5
 volatile bool need_refill;
 
-extern TIM_HandleTypeDef htim1;
-extern SPI_HandleTypeDef hspi1;
-extern DMA_HandleTypeDef hdma_tim1_up;
+extern TIM_HandleTypeDef* htim1;
+extern SPI_HandleTypeDef* hspi1;
+extern DMA_HandleTypeDef* hdma_tim1_up;
 
 uint16_t sd_buffer1[BUFFER_SIZE];
 uint16_t sd_buffer2[BUFFER_SIZE];
@@ -26,26 +28,21 @@ FIL file;
 FRESULT fr;
 UINT br;
 
-uint32_t ARR;
-uint16_t MIN_DUTY;
-uint16_t MAX_DUTY;
-
 //Transducer t; // transducer object, gets instantiated in init
 //SD sd; // sd card object, is instantiated in init
 
 //input: 16 bit signed --> 16 bit unsigned [0-65535] --> [0-ARR]
 uint16_t resample_CCR(int16_t s16) {
     uint16_t u16 = s16 + 32768u;             
-    uint32_t t = (uint32_t)u16 * ARR; //(htim1.Instance->ARR);
-    uint16_t resampled = (uint16_t)(t >> 16) + 200;
-    return resampled;
+    uint32_t t = (uint32_t)u16 * (uint32_t)(htim1->Init->ARR);
+    return (uint16_t)(t >> 16);
 }
 
 // Minimal WAV header skip: find "data" chunk and its size.
 FRESULT wav_seek_to_data(uint32_t *data_bytes_out)
 {
     typedef struct { char id[4]; uint32_t size; } chunk_t;
-    uint8_t hdr[12];
+    uint8_t  hdr[12];
     UINT     br;
 
     // Read RIFF header (12 bytes): "RIFF", size, "WAVE"
@@ -85,30 +82,17 @@ void fill_from_wav(uint16_t *dst) {
     for (int i = samples_read; i < BUFFER_SIZE; i++) { dst[i] = 0; }
 }
 
-// main loop
-void event_loop() {
-	while (true) {
-        if (need_refill) {
-        	//printf("8=====D\n");
-            fill_from_wav(producer_buf);
-            need_refill = false;
-        }
-    }
-}
 
 // initialize program and start event_loop
 void init() {
     need_refill = false;
-    ARR = (uint32_t)((htim1.Instance->ARR + 1) / 2);
+
 	//mount the SD card
 	sd_mount();
 
 	//open the file
 	fr = f_open(&file, filename, FA_READ);
-	if (fr != FR_OK)
-		printf("f_open failed with code: %d\r\n", fr); /*some other error handling?*/
-	else
-		printf("f_open opened file %s\n", filename);
+	if (fr != FR_OK) { printf("f_open failed with code: %d\r\n", fr); /*some other error handling?*/}
 
 	uint32_t data_bytes = 0;
 	fr = wav_seek_to_data(&data_bytes);
@@ -119,43 +103,62 @@ void init() {
 	fill_from_wav(consumer_buf);
 	fill_from_wav(producer_buf);
 
-
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
-
 	// initialize DMA
-	__HAL_TIM_ENABLE_DMA(&htim1, TIM_DMA_UPDATE);
-	HAL_DMA_RegisterCallback(&hdma_tim1_up, HAL_DMA_XFER_CPLT_CB_ID, HAL_DMA_XferCpltCallback);
-	HAL_DMA_Start_IT(&hdma_tim1_up, (uint32_t)consumer_buf, (uint32_t)&htim1.Instance->CCR1, BUFFER_SIZE);
-
-	printf("hdma_tim1_up.Instance = %p\r\n", (void*)hdma_tim1_up.Instance);
-	printf("XferCpltCallback      = %p\r\n", (void*)hdma_tim1_up.XferCpltCallback);
+	HAL_DMA_Start_IT(
+		hdma_tim1_up,
+		(uint32_t)consumer_buf,
+		(uint32_t)&htim1->Instance->CCR1,
+		BUFFER_SIZE
+	);
+	__HAL_TIM_ENABLE_DMA(htim1, TIM_DMA_UPDATE);
+	HAL_TIM_PWM_Start(htim1, TIM_CHANNEL_1);
 
 	event_loop();
 }
 
+// main loop
+void event_loop() {
+	while (true) {
+        if (need_refill) {
+            fill_from_wav(producer_buf);
+            need_refill = false;
+        }
+    }
+}
+
 // HAL C functions
+extern "C" {
+
 void HAL_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma) {
 	//if (hdma == htim1.hdma[TIM_DMA_ID_UPDATE]) {
-	if(hdma == &hdma_tim1_up) {
+	if(hdma == hdma_tim1_up) {
     	//swap buffers
-		uint16_t* temp_buf = consumer_buf;
-		consumer_buf = producer_buf;
-		producer_buf = temp_buf;
+        std::swap(consumer_buf, producer_buf);
 
         // launch next DMA on the new consumer_buf
-        HAL_DMA_Start_IT(&hdma_tim1_up,
-			(uint32_t)consumer_buf,
-			(uint32_t)&htim1.Instance->CCR1,
-			BUFFER_SIZE
-		);
+        HAL_DMA_Start_IT(hdma_tim1_up,
+                        (uint32_t)consumer_buf,
+                        (uint32_t)&htim1->Instance->CCR1,
+                        BUFFER_SIZE);
 
         //signal to refil the (now empty) producerbuffer 
         need_refill = true;
     }
 }
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+
+}
+
+// this callback is hit when the transducer sampling timer ccr value is reached
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
+
+}
+
 // called by main.h allows for C++ projects
 void HAL_PostInit() {
     init();
+}
+
 }
