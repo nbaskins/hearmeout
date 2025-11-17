@@ -19,6 +19,10 @@
 #include "fatfs.h"
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern char sd_path[];
 
 // Mount and unmount
@@ -55,5 +59,9 @@ typedef struct CsvRecord {
 
 // CSV reader (caller defines record array)
 int sd_read_csv(const char *filename, CsvRecord *records, int max_records, int *record_count);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __SD_FUNCTIONS_H__

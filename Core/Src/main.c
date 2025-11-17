@@ -17,12 +17,12 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <sd_functions.h>
 #include "main.h"
 #include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "sd_functions.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
