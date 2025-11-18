@@ -8,9 +8,8 @@
 extern TIM_HandleTypeDef htim1;
 extern DMA_HandleTypeDef hdma_tim1_up;
 
-SD sd; // sd object used to handle updating CCR based on audio file
-
 const char* filename = "433.wav"; // name of audio file to update CCR
+SD sd; // sd object used to handle updating CCR based on audio file
 
 // main loop
 void event_loop() {
@@ -21,11 +20,7 @@ void event_loop() {
 
 // initialize program and start event_loop
 void init() {
-	sd = SD(filename, &htim1, &hdma_tim1_up);
-
-    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
-
+	sd.init(filename, &htim1, &hdma_tim1_up);
 	event_loop();
 }
 

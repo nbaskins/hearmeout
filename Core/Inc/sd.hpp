@@ -19,7 +19,7 @@ private:
 	bool need_refill; // bool that represents if a refill is needed for producer_buf
 
 	// resamples the input to be a 16 bit unsigned int with value from 0 to ARR
-	uint16_t resample_CCR(int16_t s16) {
+	uint16_t resample_CCR (int16_t s16) {
 		uint16_t u16 = s16 + 32768u;
 		uint32_t t = (uint32_t)u16 * (uint32_t)(htim_ptr->Instance->ARR + 1) / 2;
 		uint16_t resampled = (uint16_t)(t >> 16) + 200;
@@ -27,8 +27,7 @@ private:
 	}
 
 	// Minimal WAV header skip: find "data" chunk and its size.
-	FRESULT wav_seek_to_data(uint32_t *data_bytes_out)
-	{
+	FRESULT wav_seek_to_data (uint32_t *data_bytes_out) {
 		typedef struct { char id[4]; uint32_t size; } chunk_t;
 		uint8_t hdr[12];
 		UINT br;
@@ -62,7 +61,7 @@ private:
 	}
 
 	// Fill a CCR buffer from the WAV file
-	void fill_from_wav(uint16_t *dst) {
+	void fill_from_wav (uint16_t *dst) {
 		UINT received = 0;
 
 		// Read directly into dst buffer
@@ -85,8 +84,12 @@ private:
 public:
 	SD() = default;
 
-	SD(const char* filename_in, TIM_HandleTypeDef* htim_in, DMA_HandleTypeDef* hdma_in)
-		: filename(filename_in), htim_ptr(htim_in), hdma_ptr(hdma_in), need_refill(false) {
+	void init(const char* filename_in, TIM_HandleTypeDef* htim_in, DMA_HandleTypeDef* hdma_in) {
+		// set member variable values
+		filename = filename_in;
+		htim_ptr = htim_in;
+		hdma_ptr = hdma_in;
+
 		// mount the SD card
 		sd_mount();
 
@@ -106,11 +109,15 @@ public:
 		fill_from_wav(consumer_buf);
 		fill_from_wav(producer_buf);
 
+		// start tim PWM
+		HAL_TIM_PWM_Start(htim_ptr, TIM_CHANNEL_1);
+		HAL_TIMEx_PWMN_Start(htim_ptr, TIM_CHANNEL_1);
+
 		// initialize DMA
 		__HAL_TIM_ENABLE_DMA(htim_ptr, TIM_DMA_UPDATE);
 		HAL_DMA_RegisterCallback(hdma_ptr, HAL_DMA_XFER_CPLT_CB_ID, HAL_DMA_XferCpltCallback);
-		HAL_DMA_Start_IT(hdma_ptr, (uint32_t)consumer_buf, (uint32_t)htim_ptr->Instance->CCR1, BUFFER_SIZE);
-	};
+		HAL_DMA_Start_IT(hdma_ptr, (uint32_t)consumer_buf, (uint32_t)&htim_ptr->Instance->CCR1, BUFFER_SIZE);
+	}
 
 	// this function gets called when a buffer is emptied
 	void handle_dma_cb() {
@@ -123,7 +130,7 @@ public:
 		HAL_DMA_Start_IT(
 			hdma_ptr,
 			(uint32_t)consumer_buf,
-			(uint32_t)htim_ptr->Instance->CCR1,
+			(uint32_t)&htim_ptr->Instance->CCR1,
 			BUFFER_SIZE
 		);
 
