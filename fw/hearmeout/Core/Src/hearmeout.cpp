@@ -14,6 +14,7 @@ SD sd; // sd object used to handle updating CCR based on audio file
 void event_loop() {
 	while (true) {
         sd.check_prod();
+        sd.check_next();
     }
 }
 
@@ -42,7 +43,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         // if 50 ms has passed since last press, set next song
         if (now - last_press >= DEBOUNCE_MS) {
             last_press = now;
-            sd.next_file();
+            sd.request_next();
         }
     }
 }

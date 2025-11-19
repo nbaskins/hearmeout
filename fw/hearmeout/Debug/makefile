@@ -88,8 +88,8 @@ all: main-build
 main-build: hearmeout.elf secondary-outputs
 
 # Tool invocations
-hearmeout.elf hearmeout.map: $(OBJS) $(USER_OBJS) /home/nate/Projects/EECS373/hearmeout/fw/hearmeout/STM32L4R5ZITXP_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-g++ -o "hearmeout.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/nate/Projects/EECS373/hearmeout/fw/hearmeout/STM32L4R5ZITXP_FLASH.ld" --specs=nosys.specs -Wl,-Map="hearmeout.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+hearmeout.elf hearmeout.map: $(OBJS) $(USER_OBJS) /Users/boot_ssd/Desktop/Stuff/School/Sem\ 5\ Mich/EECS\ 373/HearMeOut/hearmeout/fw/hearmeout/STM32L4R5ZITXP_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-g++ -o "hearmeout.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/boot_ssd/Desktop/Stuff/School/Sem 5 Mich/EECS 373/HearMeOut/hearmeout/fw/hearmeout/STM32L4R5ZITXP_FLASH.ld" --specs=nosys.specs -Wl,-Map="hearmeout.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
