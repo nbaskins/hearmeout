@@ -2,14 +2,25 @@
  * Class for handling SD data transfers and DMA with CCR
  */
 
-#include "sd_functions.h"
+#include "fatfs.h"
+#include "sd_diskio_spi.h"
+#include "sd_spi.h"
+#include "ff.h"
+#include "ffconf.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <vector>
+#include <string>
 
 #define BUFFER_SIZE 2048
 
 class SD {
 private:
 	FIL file; // file being read from SD card
-	const char* filename; // name of file being read from SD card
+	FATFS fs; // FATFS filesystem object
+	char sd_path[4]; // char array for storing sd path info
+	std::string filename; // name of file being read from SD card
 	uint16_t sd_buffer1[BUFFER_SIZE]; // buffer of SD data
 	uint16_t sd_buffer2[BUFFER_SIZE]; // buffer of SD data
 	uint16_t* consumer_buf = sd_buffer1; // pointer to buffer currently being consumed by CCR
@@ -17,6 +28,60 @@ private:
 	TIM_HandleTypeDef* htim_ptr; // pointer to timer handle for transducers
 	DMA_HandleTypeDef* hdma_ptr; // pointer to dma handle for tim up
 	bool need_refill; // bool that represents if a refill is needed for producer_buf
+	std::vector<std::string> wav_paths; // vector of wav file paths
+	size_t current_wav; // stores the current wav file in wav_paths
+
+	// mounts sd card
+	int sd_mount() {
+		FRESULT res;
+		extern uint8_t sd_is_sdhc(void);
+
+		if (FATFS_LinkDriver(&SD_Driver, sd_path) != 0) {
+			return FR_DISK_ERR;
+		}
+
+		DSTATUS stat = disk_initialize(0);
+		if (stat != 0)
+			return FR_NOT_READY;
+
+		res = f_mount(&fs, sd_path, 1);
+
+		return res;
+	}
+
+	// recursively finds all wav files on sd card and adds paths to wav_paths
+	void get_files_recursive (const char *path, int depth) {
+		DIR dir;
+		FILINFO fno;
+
+		// try to open directory at path
+		if (f_opendir(&dir, path) != FR_OK)
+			return;
+
+		while (true) {
+			// try to read next direntry
+			if (f_readdir(&dir, &fno) != FR_OK || fno.fname[0] == 0)
+				break;
+
+			const char *name = fno.fname;
+
+			// check if entry is directory or file
+			if (fno.fattrib & AM_DIR) {
+				// check that directory is not a special entry and call function again
+				if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0) {
+					std::string newpath = std::string(path) + "/" + name;
+					get_files_recursive(newpath.c_str(), depth + 1);
+				}
+			} else {
+				// check if file has an extension and is a .wav file
+				const char *ext = strrchr(name, '.');
+				if (ext && strcasecmp(ext, ".wav") == 0) {
+					std::string fullpath = std::string(path) + "/" + name;
+					wav_paths.emplace_back(fullpath);
+				}
+			}
+		}
+	}
 
 	// resamples the input to be a 16 bit unsigned int with value from 0 to ARR
 	uint16_t resample_CCR (int16_t s16) {
@@ -84,21 +149,26 @@ private:
 public:
 	SD() = default;
 
-	void init(const char* filename_in, TIM_HandleTypeDef* htim_in, DMA_HandleTypeDef* hdma_in) {
+	void init (TIM_HandleTypeDef* htim_in, DMA_HandleTypeDef* hdma_in) {
 		// set member variable values
-		filename = filename_in;
 		htim_ptr = htim_in;
 		hdma_ptr = hdma_in;
+		current_wav = 0;
 
 		// mount the SD card
 		sd_mount();
 
+		// get all wav file paths
+		current_wav = 0;
+		get_files();
+		filename = wav_paths[current_wav];
+
 		// open the file
-		FRESULT fr = f_open(&file, filename, FA_READ);
+		FRESULT fr = f_open(&file, filename.c_str(), FA_READ);
 		if (fr != FR_OK)
 			printf("f_open failed with code: %d\r\n", fr);
 		else
-			printf("f_open opened file %s\n", filename);
+			printf("f_open opened file %s\n", filename.c_str());
 
 		uint32_t data_bytes = 0;
 		fr = wav_seek_to_data(&data_bytes);
@@ -144,5 +214,51 @@ public:
 			fill_from_wav(producer_buf);
 			need_refill = false;
 		}
+	}
+
+	// adds all wav files on the sd card to wav_paths
+	void get_files() {
+		// clear wav_paths and populate vector with all wav files on sd card
+		wav_paths.clear();
+		get_files_recursive(sd_path, 0);
+	}
+
+	// changes the filename to the next filename in the vector
+	void next_file() {
+		if (wav_paths.empty())
+			return;
+
+		current_wav = (current_wav + 1) % wav_paths.size();
+		filename = wav_paths[current_wav];
+
+		FRESULT fr = f_close(&file);
+		if (fr != FR_OK)
+			printf("f_close failed with code: %d\r\n", fr);
+
+		HAL_DMA_Abort(hdma_ptr);
+		__HAL_TIM_DISABLE_DMA(htim_ptr, TIM_DMA_UPDATE);
+
+
+		printf("opening file: %s\r\n", filename.c_str());
+		fr = f_open(&file, filename.c_str(), FA_READ);
+		if (fr != FR_OK) {
+			printf("f_open failed with code: %d\r\n", fr);
+			return;
+		}
+
+		// fill consumer and producer buffers
+		fill_from_wav(consumer_buf);
+		fill_from_wav(producer_buf);
+
+		__HAL_TIM_ENABLE_DMA(htim_ptr, TIM_DMA_UPDATE);
+
+		HAL_DMA_Start_IT(
+		    hdma_ptr,
+		    (uint32_t)consumer_buf,
+		    (uint32_t)&htim_ptr->Instance->CCR1,
+		    BUFFER_SIZE
+		);
+
+		printf("filename: %s\r\n", filename.c_str());
 	}
 };
