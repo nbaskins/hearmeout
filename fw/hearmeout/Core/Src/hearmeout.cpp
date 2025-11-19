@@ -8,28 +8,44 @@
 extern TIM_HandleTypeDef htim1;
 extern DMA_HandleTypeDef hdma_tim1_up;
 
-const char* filename = "433.wav"; // name of audio file to update CCR
 SD sd; // sd object used to handle updating CCR based on audio file
 
 // main loop
 void event_loop() {
 	while (true) {
         sd.check_prod();
+        sd.check_next();
     }
 }
 
 // initialize program and start event_loop
 void init() {
-	sd.init(filename, &htim1, &hdma_tim1_up);
+	sd.init(&htim1, &hdma_tim1_up);
 	event_loop();
 }
 
 // HAL C functions
 extern "C" {
 
-void HAL_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma) {
+// DMA callback when buffer is emptied
+void HAL_DMA_XferCpltCallback (DMA_HandleTypeDef *hdma) {
 	if(hdma == &hdma_tim1_up)
 		sd.handle_dma_cb();
+}
+
+// callback for button press
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == GPIO_PIN_13) {
+        static uint32_t last_press = 0;
+        static constexpr uint32_t DEBOUNCE_MS = 500;
+        uint32_t now = HAL_GetTick();
+
+        // if 50 ms has passed since last press, set next song
+        if (now - last_press >= DEBOUNCE_MS) {
+            last_press = now;
+            sd.request_next();
+        }
+    }
 }
 
 // called by main.h allows for C++ projects
