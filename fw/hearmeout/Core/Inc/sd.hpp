@@ -21,7 +21,7 @@ private:
 	// resamples the input to be a 16 bit unsigned int with value from 0 to ARR
 	uint16_t resample_CCR (int16_t s16) {
 		uint16_t u16 = s16 + 32768u;
-		uint32_t t = (uint32_t)u16 * (uint32_t)(htim_ptr->Instance->ARR + 1) / 2;
+		uint32_t t = (uint32_t)u16 * (uint32_t)(htim_ptr->Instance->ARR + 1) / 2; // potential bloat here
 		uint16_t resampled = (uint16_t)(t >> 16) + 200;
 		return resampled;
 	}

@@ -5,10 +5,13 @@ class Servo {
 private:
 	TIM_HandleTypeDef* htim_ptr; // pointer to timer handle for servo
 	uint32_t channel; // channel of timer that this servo is on
+	uint32_t min_ccr; // minimum ccr value for servo PWM output (1 ms duty cycle)
 
 public:
 	Servo(TIM_HandleTypeDef* htim_in, uint32_t channel_in)
-		: htim_ptr(htim_in), channel(channel_in) {}
+		: htim_ptr(htim_in), channel(channel_in) {
+			uint32_t min_ccr = (htim_ptr->Instance->ARR + 1) / 20;
+		}
 
 	// starts PWM generation for this servo
 	void Servo::start_servo() {
@@ -23,7 +26,6 @@ public:
 			angle = 180;
 
 		// find CCR for angle and set based on htim_ptr ARR
-		uint32_t min_ccr = (htim_ptr->Instance->ARR + 1) / 20;
 		uint32_t ccr = min_ccr + (angle * min_ccr) / 180;
 		__HAL_TIM_SET_COMPARE(htim_ptr, channel, ccr);
 	}
