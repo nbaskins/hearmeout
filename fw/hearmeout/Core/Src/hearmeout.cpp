@@ -40,13 +40,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == GPIO_PIN_13) {
         static uint32_t last_press = 0;
         static constexpr uint32_t DEBOUNCE_MS = 500;
+        static bool is_pause = true;
         uint32_t now = HAL_GetTick();
 
         // if 50 ms has passed since last press, set next song
         if (now - last_press >= DEBOUNCE_MS) {
             last_press = now;
-            sd.request_next();
+//            sd.request_next();
+            if(is_pause){
+            	sd.request_pause();
+            }else{
+            	sd.request_play();
+            }
+            is_pause = !is_pause;
         }
+
+
     }
 }
 

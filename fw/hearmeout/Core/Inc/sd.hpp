@@ -30,6 +30,8 @@ private:
 	DMA_HandleTypeDef* hdma_ptr; // pointer to dma handle for tim up
 	bool need_refill; // bool that represents if a refill is needed for producer_buf
 	bool next_requested; //bool that represents if the next song is requested
+	bool play_requested;
+	bool pause_requested;
 	bool continuous;     //skips to next song after song ends
 	std::vector<std::string> wav_paths; // vector of wav file paths
 	size_t current_wav; // stores the current wav file in wav_paths
@@ -87,7 +89,8 @@ private:
 
 	// resamples the input to be a 16 bit unsigned int with value from 0 to ARR
 	uint16_t resample_CCR (int16_t s16) {
-		int32_t x = s16;
+
+		uint32_t u16 = s16 + 32768;
 
 		uint32_t t = (uint32_t)u16 * (uint32_t)(htim2_EN->Instance->ARR);
 		uint16_t resampled = (uint16_t)(t >> 16);
@@ -275,10 +278,28 @@ public:
 			next_requested = false;
 			skip();
 		}
+
+		if (pause_requested) {
+			pause_requested = false;
+			pause();
+		}
+
+		if (play_requested) {
+			play_requested = false;
+			play();
+		}
 	}
 
 	void request_next() {
 		next_requested = true;
+	}
+
+	void request_pause() {
+		pause_requested = true;
+	}
+
+	void request_play() {
+		play_requested = true;
 	}
 
 	// changes the filename to the next filename in the vector
