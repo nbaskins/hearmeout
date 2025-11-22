@@ -3,8 +3,8 @@
 ../Core/Src/main.c:183:13:MX_LPUART1_UART_Init	5
 ../Core/Src/main.c:231:13:MX_SPI1_Init	2
 ../Core/Src/main.c:271:13:MX_TIM1_Init	7
-../Core/Src/main.c:351:13:MX_TIM2_Init	7
-../Core/Src/main.c:412:13:MX_DMA_Init	1
-../Core/Src/main.c:440:13:MX_GPIO_Init	1
-../Core/Src/main.c:485:1:__io_putchar	1
-../Core/Src/main.c:497:6:Error_Handler	1
+../Core/Src/main.c:351:13:MX_TIM2_Init	6
+../Core/Src/main.c:408:13:MX_DMA_Init	1
+../Core/Src/main.c:433:13:MX_GPIO_Init	1
+../Core/Src/main.c:479:1:__io_putchar	1
+../Core/Src/main.c:491:6:Error_Handler	1

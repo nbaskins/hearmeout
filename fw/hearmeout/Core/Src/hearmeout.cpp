@@ -6,6 +6,7 @@
 #include "sd.hpp"
 
 extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim2;
 extern DMA_HandleTypeDef hdma_tim1_up;
 
 SD sd; // sd object used to handle updating CCR based on audio file
@@ -15,12 +16,13 @@ void event_loop() {
 	while (true) {
         sd.check_prod();
         sd.check_next();
+        //printf("CCR: %d\r\n", (int16_t)(htim2.Instance->CCR1));
     }
 }
 
 // initialize program and start event_loop
 void init() {
-	sd.init(&htim1, &hdma_tim1_up);
+	sd.init(&htim1, &htim2, &hdma_tim1_up);
 	event_loop();
 }
 

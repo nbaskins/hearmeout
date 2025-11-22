@@ -59,8 +59,8 @@ void HAL_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SPI_CS_Pin GPIO_PIN_5
-#define SPI_CS_GPIO_Port GPIOC
+#define SPI_CS_Pin GPIO_PIN_14
+#define SPI_CS_GPIO_Port GPIOD
 
 /* USER CODE BEGIN Private defines */
 

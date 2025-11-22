@@ -25,7 +25,8 @@ private:
 	uint16_t sd_buffer2[BUFFER_SIZE]; // buffer of SD data
 	uint16_t* consumer_buf = sd_buffer1; // pointer to buffer currently being consumed by CCR
 	uint16_t* producer_buf = sd_buffer2; // pointer to buffer being filled from SD card
-	TIM_HandleTypeDef* htim_ptr; // pointer to timer handle for transducers
+	TIM_HandleTypeDef* htim1_DIR; // pointer to timer handle for transducers
+	TIM_HandleTypeDef* htim2_EN; // pointer to timer handle for transducers
 	DMA_HandleTypeDef* hdma_ptr; // pointer to dma handle for tim up
 	bool need_refill; // bool that represents if a refill is needed for producer_buf
 	bool next_requested; //bool that represents if the next song is requested
@@ -86,9 +87,10 @@ private:
 
 	// resamples the input to be a 16 bit unsigned int with value from 0 to ARR
 	uint16_t resample_CCR (int16_t s16) {
-		uint16_t u16 = s16 + 32768u;
-		uint32_t t = (uint32_t)u16 * (uint32_t)(htim_ptr->Instance->ARR + 1) / 2; // potential bloat here
-		uint16_t resampled = (uint16_t)(t >> 16) + 200;
+		int32_t x = s16;
+
+		uint32_t t = (uint32_t)u16 * (uint32_t)(htim2_EN->Instance->ARR);
+		uint16_t resampled = (uint16_t)(t >> 16);
 		return resampled;
 	}
 
@@ -139,7 +141,9 @@ private:
 		uint32_t samples_read = received / sizeof(int16_t); //same as received >> 1
 		for (uint32_t i = 0; i < samples_read; i++) {
 			int16_t s16 = ((int16_t*)dst)[i];
-			dst[i] = resample_CCR(s16);
+			//printf("s16 Val: %d\r\n", s16);
+			uint16_t resampled = resample_CCR(s16);
+			dst[i] = resampled;
 		}
 
 		// Pad remainder with zeros (i.e if end of file reached)
@@ -152,19 +156,27 @@ private:
 
 public:
 	SD() = default;
+	//htim1 --> 40kHz square wave PWM generation to toggle DIR that triggers DMA to put buff[s] --> htim2_CCR
+	//htim2 --> 80kHz modulated PWM
 
-	void init (TIM_HandleTypeDef* htim_in, DMA_HandleTypeDef* hdma_in) {
+	void init (TIM_HandleTypeDef* htim1_in, TIM_HandleTypeDef* htim2_in, DMA_HandleTypeDef* hdma_in) {
 		printf("Initializing system... \r\n");
 		// set member variable values
-		htim_ptr = htim_in;
+		htim1_DIR = htim1_in;
+		htim2_EN = htim2_in;
 		hdma_ptr = hdma_in;
 		need_refill = false;
 		continuous = true;
 		current_wav = 0;
+		FRESULT fr;
 
 		// mount the SD card
 		printf("Mounting SD Card.. \r\n");
-		sd_mount();
+		fr = sd_mount();
+		if (fr != FR_OK)
+			printf("SD Mount Failed with code: %d\r\n", fr);
+		else
+			printf("SD Mounted!\n");
 
 		wav_paths.clear();
 		// get all wav file paths
@@ -173,7 +185,7 @@ public:
 		filename = wav_paths[current_wav];
 
 		// open the file
-		FRESULT fr = f_open(&file, filename.c_str(), FA_READ);
+		fr = f_open(&file, filename.c_str(), FA_READ);
 		if (fr != FR_OK)
 			printf("f_open failed with code: %d\r\n", fr);
 		else
@@ -195,14 +207,15 @@ public:
 		HAL_DMA_Start_IT(
 			hdma_ptr,
 			(uint32_t)consumer_buf,
-			(uint32_t)&htim_ptr->Instance->CCR1,
+			(uint32_t)&htim2_EN->Instance->CCR1,
 			BUFFER_SIZE
 		);
 
 		//signal to refil the (now empty) producerbuffer
 		need_refill = true;
 	}
-
+	//htim1 --> 40kHz square wave PWM generation to toggle DIR that triggers DMA to put buff[s] --> htim2_CCR
+	//htim2 --> 80kHz modulated PWM
 	void start_song() {
 		 //Seek to WAV data
 		uint32_t data_bytes = 0;
@@ -215,24 +228,38 @@ public:
 		fill_from_wav(consumer_buf);
 		fill_from_wav(producer_buf);
 
-		HAL_TIM_PWM_Start(htim_ptr, TIM_CHANNEL_1);
-		__HAL_TIM_ENABLE_DMA(htim_ptr, TIM_DMA_UPDATE);
+		//set DIR to be a 40kHz sq wave (ARR = 2999, CCR = 1499)
+		htim1_DIR->Instance->CCR1 = 1499;
+
+		//start the direction PWM timer (40kHz square wave)
+		HAL_TIM_PWM_Start(htim1_DIR, TIM_CHANNEL_1);
+		//start the EN PWM timer (80kHz modulated wave)
+		HAL_TIM_PWM_Start(htim2_EN, TIM_CHANNEL_1);
+
+		__HAL_TIM_ENABLE_DMA(htim1_DIR, TIM_DMA_UPDATE);
+
 		HAL_DMA_RegisterCallback(hdma_ptr, HAL_DMA_XFER_CPLT_CB_ID, HAL_DMA_XferCpltCallback);
-		HAL_DMA_Start_IT( hdma_ptr, (uint32_t)consumer_buf, (uint32_t)&htim_ptr->Instance->CCR1, BUFFER_SIZE);
+		HAL_DMA_Start_IT(hdma_ptr,
+						(uint32_t)consumer_buf,
+						(uint32_t)(&htim2_EN->Instance->CCR1),
+						BUFFER_SIZE
+					);
+
 	}
 
 	void stop_all() {
 		HAL_DMA_Abort_IT(hdma_ptr);
-		__HAL_TIM_DISABLE_DMA(htim_ptr, TIM_DMA_UPDATE);
-		HAL_TIM_PWM_Stop(htim_ptr, TIM_CHANNEL_1);
+		__HAL_TIM_DISABLE_DMA(htim1_DIR, TIM_DMA_UPDATE);
+		HAL_TIM_PWM_Stop(htim1_DIR, TIM_CHANNEL_1);
+		HAL_TIM_PWM_Stop(htim2_EN, TIM_CHANNEL_1);
 	}
 
 	void pause() {
-		__HAL_TIM_DISABLE_DMA(htim_ptr, TIM_DMA_UPDATE);
+		__HAL_TIM_DISABLE_DMA(htim1_DIR, TIM_DMA_UPDATE);
 	}
 
 	void play() {
-		__HAL_TIM_ENABLE_DMA(htim_ptr, TIM_DMA_UPDATE);
+		__HAL_TIM_ENABLE_DMA(htim1_DIR, TIM_DMA_UPDATE);
 	}
 
 	// checks if the producer buffer needs to be refilled, called by main driver
