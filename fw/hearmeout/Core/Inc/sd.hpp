@@ -14,17 +14,31 @@
 #include <string>
 
 #define BUFFER_SIZE 2048
+#define ALBUM_BUF_SIZE 22800 //152x150 bytes for bmp album art
+
+typedef struct {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+} Pixel;
+
+#define ALBUM_W  152
+#define ALBUM_H  150
+
 
 class SD {
 private:
-	FIL file; // file being read from SD card
+	FIL audioFile; 	// file being read from SD card
+	FIL albumArt; 	// respective album art file
 	FATFS fs; // FATFS filesystem object
 	char sd_path[4]; // char array for storing sd path info
-	std::string filename; // name of file being read from SD card
+	std::string songName; // name of file being read from SD card
 	uint16_t sd_buffer1[BUFFER_SIZE]; // buffer of SD data
 	uint16_t sd_buffer2[BUFFER_SIZE]; // buffer of SD data
-	uint16_t* consumer_buf = sd_buffer1; // pointer to buffer currently being consumed by CCR
-	uint16_t* producer_buf = sd_buffer2; // pointer to buffer being filled from SD card
+	Pixel albumArtRGB[ALBUM_H][ALBUM_W];  // your final RGB buffer
+	
+	uint16_t* consumer_buf;
+	uint16_t* producer_buf;
 	TIM_HandleTypeDef* htim1_DIR; // pointer to timer handle for transducers
 	TIM_HandleTypeDef* htim2_EN; // pointer to timer handle for transducers
 	DMA_HandleTypeDef* hdma_ptr; // pointer to dma handle for tim up
@@ -104,7 +118,7 @@ private:
 		UINT br;
 
 		// Read RIFF header (12 bytes): "RIFF", size, "WAVE"
-		FRESULT fr = f_read(&file, hdr, sizeof(hdr), &br);
+		FRESULT fr = f_read(&audioFile, hdr, sizeof(hdr), &br);
 		if (fr != FR_OK || br != sizeof(hdr))
 			return FR_DISK_ERR;
 
@@ -114,7 +128,7 @@ private:
 		// Iterate chunks until we find "data"
 		while (true) {
 			chunk_t ck;
-			fr = f_read(&file, &ck, sizeof(ck), &br);
+			fr = f_read(&audioFile, &ck, sizeof(ck), &br);
 			if (fr != FR_OK || br != sizeof(ck))
 				return FR_DISK_ERR;
 
@@ -126,7 +140,7 @@ private:
 			}
 
 			// Skip this chunk
-			fr = f_lseek(&file, f_tell(&file) + ck.size);
+			fr = f_lseek(&audioFile, f_tell(&audioFile) + ck.size);
 			if (fr != FR_OK) return fr;
 		}
 	}
@@ -136,7 +150,7 @@ private:
 		UINT received = 0;
 
 		// Read directly into dst buffer
-		FRESULT fr = f_read(&file, (uint8_t*)dst, BUFFER_SIZE * sizeof(int16_t), &received);
+		FRESULT fr = f_read(&audioFile, (uint8_t*)dst, BUFFER_SIZE * sizeof(int16_t), &received);
 		if (fr != FR_OK)
 			printf("f_read failed with code: %d\r\n", fr);
 
@@ -157,6 +171,47 @@ private:
 		}
 	}
 
+	//gets respective album art for current song 
+	void fill_respective_album_art() {
+		std::string art_path = songName.substr(0, songName.find_last_of('.')) + ".bmp";
+		FRESULT fr = f_open(&albumArt, art_path.c_str(), FA_READ);
+		if (fr != FR_OK) printf("f_open failed with code: %d\r\n", fr);
+
+		// 14 byte header + 40-byte DIB header = 54
+		fr = f_lseek(&albumArt, 54);
+		if (fr != FR_OK) printf("f_lseek failed with code: %d\r\n", fr);
+
+		//read BMP palette (maps 256 colors to RGB)
+		UINT br;
+		uint8_t palette[256 * 4];
+		fr = f_read(&albumArt, palette, sizeof(palette), &br);
+		if (fr != FR_OK) printf("f_read failed with code: %d\r\n", fr);
+
+		// Need to convert from [0-255] indexed color to RGB = [0-7][0-7][0-7]
+		// Can read in row by row and convert 
+		uint8_t row[ALBUM_W];
+		for (int y = 0; y < ALBUM_H; ++y) {
+			fr = f_read(&albumArt, row, ALBUM_W, &br);
+			if (fr != FR_OK) printf("f_read failed with code: %d\r\n", fr);
+
+			// BMP rows are stored bottom-up. Flip vertically into buffer
+			int destY = ALBUM_H - 1 - y;
+			for (int x = 0; x < ALBUM_W; ++x) {
+				uint8_t idx = row[x];
+				// palette entry: [B][G][R][0x00]
+				uint8_t b = palette[4 * idx + 0];
+				uint8_t g = palette[4 * idx + 1];
+				uint8_t r = palette[4 * idx + 2];
+
+				albumArtRGB[destY][x].r = r;
+				albumArtRGB[destY][x].g = g;
+				albumArtRGB[destY][x].b = b;
+			}
+		}
+		f_close(&albumArt);
+	}
+
+
 public:
 	SD() = default;
 	//htim1 --> 40kHz square wave PWM generation to toggle DIR that triggers DMA to put buff[s] --> htim2_CCR
@@ -171,6 +226,9 @@ public:
 		need_refill = false;
 		continuous = true;
 		current_wav = 0;
+
+		consumer_buf = sd_buffer1; // pointer to buffer currently being consumed by CCR
+		producer_buf = sd_buffer2; // pointer to buffer being filled from SD card
 		FRESULT fr;
 
 		// mount the SD card
@@ -185,16 +243,17 @@ public:
 		// get all wav file paths
 		printf("Reading in files from SD card... \r\n");
 		get_files(sd_path, 0);
-		filename = wav_paths[current_wav];
+		songName = wav_paths[current_wav];
+
+		// get respective album art
+		fill_respective_album_art();
 
 		// open the file
-		fr = f_open(&file, filename.c_str(), FA_READ);
+		fr = f_open(&audioFile, songName.c_str(), FA_READ);
 		if (fr != FR_OK)
 			printf("f_open failed with code: %d\r\n", fr);
-		else
-			printf("f_open opened file %s\n", filename.c_str());
 
-		printf("Now playing: %s\r\n", filename.c_str());
+		printf("Now playing: %s\r\n", songName.c_str());
 		//skip to PCM, fill buffers, start timer, PWM, start DMA
 		start_song();
 	}
@@ -217,8 +276,7 @@ public:
 		//signal to refil the (now empty) producerbuffer
 		need_refill = true;
 	}
-	//htim1 --> 40kHz square wave PWM generation to toggle DIR that triggers DMA to put buff[s] --> htim2_CCR
-	//htim2 --> 80kHz modulated PWM
+
 	void start_song() {
 		 //Seek to WAV data
 		uint32_t data_bytes = 0;
@@ -315,22 +373,24 @@ public:
 	    need_refill = false;
 
 	    // Close the current file
-	    FRESULT fr = f_close(&file);
+	    FRESULT fr = f_close(&audioFile);
 	    if (fr != FR_OK)
 	        printf("f_close failed with code: %d\r\n", fr);
 
 	    // Advance playlist
 	    current_wav = (current_wav + 1) % wav_paths.size();
-	    filename = wav_paths[current_wav];
+	    songName = wav_paths[current_wav];
+
+		fill_respective_album_art();
 
 	    //open new file
-	    fr = f_open(&file, filename.c_str(), FA_READ);
+	    fr = f_open(&audioFile, songName.c_str(), FA_READ);
 	    if (fr != FR_OK) {
 	        printf("f_open failed with code: %d\r\n", fr);
 	        return;
 	    }
 
-	    printf("Now playing: %s\r\n", filename.c_str());
+	    printf("Now playing: %s\r\n", songName.c_str());
 	}
 
 };
