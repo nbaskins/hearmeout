@@ -326,6 +326,9 @@ public:
 	    // prevent check_prod() from using old file
 	    need_refill = false;
 
+		//stop playback so there's no glitches
+		stop_all();
+
 	    // Close the current file
 	    FRESULT fr = f_close(&file);
 	    if (fr != FR_OK)
@@ -342,10 +345,8 @@ public:
 	        return;
 	    }
 
-		cur_song_total_bytes = wav_seek_to_data();
-		cur_song_bytes_read = 0;
-
 	    printf("Now playing: %s\r\n", filename.c_str());
+		start_song();
 	}
 
 };
