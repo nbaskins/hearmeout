@@ -34,9 +34,15 @@ private:
 	bool pause_requested;
 	bool continuous;     //skips to next song after song ends
 	std::vector<std::string> wav_paths; // vector of wav file paths
-	size_t current_wav; // stores the current wav file in wav_paths
 
-	// mounts sd card
+	size_t current_wav; // stores the current wav file in wav_paths
+	uint32_t cur_song_total_bytes; // bytes remaining in current wav file
+	uint32_t cur_song_bytes_read;  // bytes read so far in current wav file
+
+	//////////////////
+	// SD FUNCTIONS //
+	//////////////////
+	// mounts sd card, saves it in sd_path member var
 	FRESULT sd_mount() {
 		FRESULT res;
 		extern uint8_t sd_is_sdhc(void);
@@ -56,6 +62,9 @@ private:
 	void get_files(const char *path, int depth) {
 		DIR dir;
 		FILINFO fno;
+
+		//clear previous paths
+		wav_paths.clear();
 
 		// try to open directory at path
 		if (f_opendir(&dir, path) != FR_OK)
@@ -87,6 +96,10 @@ private:
 		f_closedir(&dir);
 	}
 
+	///////////////////
+	// WAV FUNCTIONS //
+	///////////////////
+
 	// resamples the input to be a 16 bit unsigned int with value from 0 to ARR
 	uint16_t resample_CCR (int16_t s16) {
 
@@ -98,37 +111,28 @@ private:
 	}
 
 	// Minimal WAV header skip: find "data" chunk and its size.
-	FRESULT wav_seek_to_data (uint32_t *data_bytes_out) {
+	uint32_t wav_seek_to_data () {
 		typedef struct { char id[4]; uint32_t size; } chunk_t;
-		uint8_t hdr[12];
+		uint8_t hdr[44];
 		UINT br;
 
-		// Read RIFF header (12 bytes): "RIFF", size, "WAVE"
+		// Read header (44 bytes): "RIFF", ..., "WAVE", ... "data", Subchunk2Size
 		FRESULT fr = f_read(&file, hdr, sizeof(hdr), &br);
 		if (fr != FR_OK || br != sizeof(hdr))
-			return FR_DISK_ERR;
+			printf("f_read failed with code: %d, or sd didn't read properly \r\n", fr);
+		// file pointer now at start of PCM data
 
-		if (memcmp(hdr, "RIFF", 4) || memcmp(hdr+8, "WAVE", 4))
-			return FR_INT_ERR;
+		// Check header to make sure it's a correcrt WAV file
+		if (memcmp(hdr, "RIFF", 4) || memcmp(hdr+8, "WAVE", 4) || memcmp(hdr+36, "data", 4))
+			printf("File read is not a wav file...?\r\n");
 
-		// Iterate chunks until we find "data"
-		while (true) {
-			chunk_t ck;
-			fr = f_read(&file, &ck, sizeof(ck), &br);
-			if (fr != FR_OK || br != sizeof(ck))
-				return FR_DISK_ERR;
-
-			if (!memcmp(ck.id, "data", 4)) {
-				if (data_bytes_out)
-					*data_bytes_out = ck.size;
-
-				return FR_OK; // file pointer now at start of PCM data
-			}
-
-			// Skip this chunk
-			fr = f_lseek(&file, f_tell(&file) + ck.size);
-			if (fr != FR_OK) return fr;
-		}
+		// Get data chunk size
+		// bytes 40-44 are Subchunk2Size = NumSamples * NumChannels * BitsPerSample/8, returns number of bytes of PCM data
+		uint32_t Subchunk2Size = hdr[40] |
+								(hdr[41] << 8) |
+								(hdr[42] << 16) |
+								(hdr[43] << 24);
+		return Subchunk2Size;
 	}
 
 	// Fill a CCR buffer from the WAV file
@@ -140,13 +144,14 @@ private:
 		if (fr != FR_OK)
 			printf("f_read failed with code: %d\r\n", fr);
 
+		//increment samples read by number of bytes read (each sample is 2 bytes)
+		cur_song_bytes_read += received;
+
 		// Rescale in place
 		uint32_t samples_read = received / sizeof(int16_t); //same as received >> 1
 		for (uint32_t i = 0; i < samples_read; i++) {
 			int16_t s16 = ((int16_t*)dst)[i];
-			//printf("s16 Val: %d\r\n", s16);
-			uint16_t resampled = resample_CCR(s16);
-			dst[i] = resampled;
+			dst[i] = resample_CCR(s16);
 		}
 
 		// Pad remainder with zeros (i.e if end of file reached)
@@ -157,75 +162,16 @@ private:
 		}
 	}
 
-public:
-	SD() = default;
-	//htim1 --> 40kHz square wave PWM generation to toggle DIR that triggers DMA to put buff[s] --> htim2_CCR
-	//htim2 --> 80kHz modulated PWM
+	////////////////////////
+	// PLAYBACK FUNCTIONS //
+	////////////////////////
 
-	void init (TIM_HandleTypeDef* htim1_in, TIM_HandleTypeDef* htim2_in, DMA_HandleTypeDef* hdma_in) {
-		printf("Initializing system... \r\n");
-		// set member variable values
-		htim1_DIR = htim1_in;
-		htim2_EN = htim2_in;
-		hdma_ptr = hdma_in;
-		need_refill = false;
-		continuous = true;
-		current_wav = 0;
-		FRESULT fr;
-
-		// mount the SD card
-		printf("Mounting SD Card.. \r\n");
-		fr = sd_mount();
-		if (fr != FR_OK)
-			printf("SD Mount Failed with code: %d\r\n", fr);
-		else
-			printf("SD Mounted!\n");
-
-		wav_paths.clear();
-		// get all wav file paths
-		printf("Reading in files from SD card... \r\n");
-		get_files(sd_path, 0);
-		filename = wav_paths[current_wav];
-
-		// open the file
-		fr = f_open(&file, filename.c_str(), FA_READ);
-		if (fr != FR_OK)
-			printf("f_open failed with code: %d\r\n", fr);
-		else
-			printf("f_open opened file %s\n", filename.c_str());
-
-		printf("Now playing: %s\r\n", filename.c_str());
-		//skip to PCM, fill buffers, start timer, PWM, start DMA
-		start_song();
-	}
-
-	// this function gets called when a buffer is emptied
-	void handle_dma_cb() {
-		//swap buffers
-		uint16_t* temp_buf = consumer_buf;
-		consumer_buf = producer_buf;
-		producer_buf = temp_buf;
-
-		// launch next DMA on the new consumer_buf
-		HAL_DMA_Start_IT(
-			hdma_ptr,
-			(uint32_t)consumer_buf,
-			(uint32_t)&htim2_EN->Instance->CCR1,
-			BUFFER_SIZE
-		);
-
-		//signal to refil the (now empty) producerbuffer
-		need_refill = true;
-	}
 	//htim1 --> 40kHz square wave PWM generation to toggle DIR that triggers DMA to put buff[s] --> htim2_CCR
 	//htim2 --> 80kHz modulated PWM
 	void start_song() {
-		 //Seek to WAV data
-		uint32_t data_bytes = 0;
-		FRESULT fr = wav_seek_to_data(&data_bytes);
-		if (fr != FR_OK) {
-			printf("wav_seek_to_data failed with code: %d\r\n", fr);
-		}
+		//Seek to WAV data, set member variables
+		cur_song_total_bytes = wav_seek_to_data();
+		cur_song_bytes_read = 0;
 
 		//Fill buffers and restart playback
 		fill_from_wav(consumer_buf);
@@ -265,6 +211,61 @@ public:
 		__HAL_TIM_ENABLE_DMA(htim1_DIR, TIM_DMA_UPDATE);
 	}
 
+public:
+	SD() = default;
+	//htim1 --> 40kHz square wave PWM generation to toggle DIR that triggers DMA to put buff[s] --> htim2_CCR
+	//htim2 --> 80kHz modulated PWM
+	void init (TIM_HandleTypeDef* htim1_in, TIM_HandleTypeDef* htim2_in, DMA_HandleTypeDef* hdma_in) {
+		printf("Initializing system... \r\n");
+		// set member variable values
+		htim1_DIR = htim1_in;
+		htim2_EN = htim2_in;
+		hdma_ptr = hdma_in;
+		need_refill = false;
+		continuous = true;
+		current_wav = 0;
+		FRESULT fr;
+
+		// mount the SD card
+		printf("Mounting SD Card.. \r\n");
+		fr = sd_mount();
+		if (fr != FR_OK)
+			printf("SD Mount Failed with code: %d\r\n", fr);
+
+		// get all wav file paths
+		printf("Reading in files from SD card... \r\n");
+		get_files(sd_path, 0);
+		filename = wav_paths[current_wav];
+
+		// open the file
+		fr = f_open(&file, filename.c_str(), FA_READ);
+		if (fr != FR_OK)
+			printf("f_open failed with code: %d\r\n", fr);
+
+		printf("Now playing: %s\r\n", filename.c_str());
+		//skip to PCM, fill buffers, start timer, PWM, start DMA
+		start_song();
+	}
+
+	// this function gets called by main driver when a buffer is emptied
+	void handle_dma_cb() {
+		//swap buffers
+		uint16_t* temp_buf = consumer_buf;
+		consumer_buf = producer_buf;
+		producer_buf = temp_buf;
+
+		// launch next DMA on the new consumer_buf
+		HAL_DMA_Start_IT(
+			hdma_ptr,
+			(uint32_t)consumer_buf,
+			(uint32_t)&htim2_EN->Instance->CCR1,
+			BUFFER_SIZE
+		);
+
+		//signal to refil the (now empty) producerbuffer
+		need_refill = true;
+	}
+
 	// checks if the producer buffer needs to be refilled, called by main driver
 	void check_prod() {
 		if (need_refill) {
@@ -273,6 +274,7 @@ public:
 		}
 	}
 
+	//check what the bext action should be (skip, pause, play), called by main driver
 	void check_next() {
 		if (next_requested) {
 			next_requested = false;
@@ -290,16 +292,26 @@ public:
 		}
 	}
 
+	//sets flag to request a new song to be played, called by main driver
 	void request_next() {
 		next_requested = true;
 	}
 
+	//sets flag to request a song to be paused, called by main driver
 	void request_pause() {
 		pause_requested = true;
 	}
 
+	//sets flag to request a song to be played, called by main driver
 	void request_play() {
 		play_requested = true;
+	}
+
+	// returns progress of current song from 0.0 to 1.0
+	float get_progress() {
+		if (cur_song_total_bytes == 0)
+			return 0.0f;
+		return (float)cur_song_bytes_read / (float)cur_song_total_bytes;
 	}
 
 	// changes the filename to the next filename in the vector
@@ -329,6 +341,9 @@ public:
 	        printf("f_open failed with code: %d\r\n", fr);
 	        return;
 	    }
+
+		cur_song_total_bytes = wav_seek_to_data();
+		cur_song_bytes_read = 0;
 
 	    printf("Now playing: %s\r\n", filename.c_str());
 	}
