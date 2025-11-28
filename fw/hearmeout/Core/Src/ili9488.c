@@ -194,7 +194,7 @@ void ILI9488_Init()
 	ILI9488_SendData(0x80);
 
 	ILI9488_SendCommand(0x36);      //Memory Access
-	ILI9488_SendData(0x48);
+	ILI9488_SendData(0x28);
 
 	ILI9488_SendCommand(0x3A);      // Interface Pixel Format
 	ILI9488_SendData(0x66); 	  	//18 bit
@@ -467,13 +467,13 @@ void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
 {
 
 	uint32_t i, n, cnt, buf_size;
-	if ((x >= width) || (y >= height))
-		return;
-	if ((x + w - 1) >= width)
-		w = width - x;
-	if ((y + h - 1) >= height)
-		h = height - y;
-	setAddrWindow(x, y, x + w - 1, y + h - 1);
+//	if ((x >= width) || (y >= height))
+//		return;
+//	if ((x + w - 1) >= width)
+//		w = width - x;
+//	if ((y + h - 1) >= height)
+//		h = height - y;
+//	setAddrWindow(x, y, x + w - 1, y + h - 1);
 	uint8_t r = (color & 0xF800) >> 11;
 	uint8_t g = (color & 0x07E0) >> 5;
 	uint8_t b = color & 0x001F;
