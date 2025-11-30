@@ -377,9 +377,13 @@ public:
 	    song_finished_callback();
 	}
 
+	std::string get_song_name(){
+		return songName.substr(0, songName.find_last_of('.'));
+	}
+
 	//gets respective album art for current song
-	void display_album_cover(uint16_t x, uint16_t y, uint16_t w, uint16_t h, Screen* screen) {
-		std::string art_path = songName.substr(0, songName.find_last_of('.')) + ".bmp";
+	void display_image(std::string img_path, uint16_t x, uint16_t y, uint16_t w, uint16_t h, Screen* screen) {
+		std::string art_path = img_path + ".bmp";
 		FRESULT fr = f_open(&albumArt, art_path.c_str(), FA_READ);
 		if (fr != FR_OK) printf("f_open failed with code: %d\r\n", fr);
 

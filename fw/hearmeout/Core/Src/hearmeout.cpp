@@ -7,6 +7,7 @@
 #include "sd.hpp"
 #include "screen.hpp"
 #include "palette.hpp"
+#include "audio_jack.hpp"
 
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
@@ -14,29 +15,34 @@ extern TIM_HandleTypeDef htim3;
 extern DMA_HandleTypeDef hdma_tim1_up;
 extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi3;
+extern ADC_HandleTypeDef hadc1;
+extern OPAMP_HandleTypeDef hopamp1;
+extern OPAMP_HandleTypeDef hopamp2;
 
 SD sd; // sd object used to handle updating CCR based on audio file
 Screen screen;
+AudioJack jack;
+
+enum STATE : uint8_t{
+	SD_CARD = 0,
+	AUDIO_JACK = 1
+};
+
+STATE state;
+STATE prev_state;
 
 // BEGIN //
-
-// main loop
-void event_loop() {
-	while (true) {
-        sd.check_prod();
-        sd.check_next();
-        //printf("CCR: %d\r\n", (int16_t)(htim2.Instance->CCR1));
-    }
-}
 
 void pause_callback(){
 	printf("Pause\r\n");
 	sd.request_pause();
+	jack.request_pause();
 }
 
 void play_callback(){
 	printf("Play\r\n");
 	sd.request_play();
+	jack.request_play();
 }
 
 void skip_callback(){
@@ -44,9 +50,72 @@ void skip_callback(){
 	sd.request_next();
 }
 
+void input_callback(){
+	printf("Input\r\n");
+	state = (state == STATE::SD_CARD) ? STATE::AUDIO_JACK : STATE::SD_CARD;
+}
+
+void render_sd_gui(){
+	screen.clear();
+	screen.draw_button(15, 15, 200, 90, &pause_callback, "PAUSE");
+
+	screen.draw_button(15, 115, 200, 90, &play_callback, "PLAY");
+
+	screen.draw_button(15, 215, 200, 90, &skip_callback, "SKIP");
+
+	screen.draw_button(420, 15, 45, 45, &input_callback, nullptr);
+}
+
+void render_jack_gui(){
+	screen.clear();
+	screen.draw_button(15, 15, 200, 90, &pause_callback, "MUTE");
+
+	screen.draw_button(15, 115, 200, 90, &play_callback, "UNMUTE");
+
+	screen.draw_button(420, 15, 45, 45, &input_callback, nullptr);
+}
+
+// main loop
+void event_loop() {
+	while (true) {
+		// pause one of either the SD card or the Audio Jack in order to prevent them from both
+		if(state == STATE::SD_CARD){
+			jack.pause();
+		}else if(state == STATE::AUDIO_JACK){
+			sd.pause();
+		}
+
+		// change the UI to the corresponding input
+		if(state != prev_state){
+			// pausing both the audio jack and the sd card will prevent any unwanted noising while re-rendering the screen
+			jack.pause();
+			sd.pause();
+			if(state == STATE::SD_CARD){
+				render_sd_gui();
+				sd.display_image(sd.get_song_name(), 272, 66, 152, 150, &screen);
+				sd.request_play();
+			}else if(state == STATE::AUDIO_JACK){
+				render_jack_gui();
+				sd.display_image("0://Bodies - Dominic Fike", 272, 66, 152, 150, &screen);
+				jack.request_play();
+			}
+		}
+		prev_state = state;
+
+		// run the event loop for one of the the SD Card or the Audio Jack
+		if(state == STATE::SD_CARD){
+			sd.check_prod();
+			sd.check_next();
+		}else if(state == STATE::AUDIO_JACK){
+			jack.check_next();
+			// No Events for the audio jack
+		}
+    }
+}
+
 void song_finished_callback(){
 	printf("Song Finished\r\n");
-	sd.display_album_cover(272, 66, 152, 150, &screen);
+	sd.display_image(sd.get_song_name(), 272, 66, 152, 150, &screen);
 }
 
 void song_duration_callback(uint32_t current_song_duration, uint32_t prev_song_duration, uint32_t total_song_duration){
@@ -57,15 +126,15 @@ void song_duration_callback(uint32_t current_song_duration, uint32_t prev_song_d
 
 // initialize program and start event_loop
 void init() {
-	screen.init(&hspi3, &hspi2);
+	jack.init(&hadc1, &hopamp2);
+	screen.init(&hspi3, &hspi2, &htim3);
+
+	// we default to playing from the SD_Card
+	state = STATE::SD_CARD;
+	prev_state = STATE::SD_CARD;
+	render_sd_gui();
+
 	sd.init(&htim1, &htim2, &hdma_tim1_up, &song_finished_callback, &song_duration_callback);
-	screen.draw_button(15, 15, 200, 90, &pause_callback, "PAUSE");
-
-	screen.draw_button(15, 115, 200, 90, &play_callback, "PLAY");
-
-	screen.draw_button(15, 215, 200, 90, &skip_callback, "SKIP");
-
-	HAL_TIM_Base_Start_IT(&htim3);
 
 	event_loop();
 }
@@ -79,24 +148,17 @@ void HAL_DMA_XferCpltCallback (DMA_HandleTypeDef *hdma) {
 		sd.handle_dma_cb();
 }
 
+// callback to determine when the ADC read completes
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+	if(hadc == &hadc1){
+		uint32_t adc_val = HAL_ADC_GetValue(hadc);
+		uint32_t ccr = (static_cast<float>(adc_val) / static_cast<float>(MAX_ADC_VAL)) * htim2.Instance->ARR;
+		htim2.Instance->CCR1 = ccr;
+	}
+}
+
 // callback for button press
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	if (GPIO_Pin == GPIO_PIN_7) {
-		static unsigned long last_interrupt_time = 0;
-	    static bool is_pause = true;
-		unsigned long interrupt_time = HAL_GetTick();
-
-		if (interrupt_time - last_interrupt_time > 500) { // debounce
-//			uint16_t touch_x;
-//			uint16_t touch_y;
-//			uint16_t touch_z;
-//			screen.sample_x_y(&touch_x, &touch_y, &touch_z);
-//			printf("Sampled %u %u\r\n", touch_x, touch_y);
-//			screen.check_buttons(touch_x, touch_y);
-
-			last_interrupt_time = interrupt_time;
-		}
-	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)

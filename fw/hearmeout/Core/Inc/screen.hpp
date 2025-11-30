@@ -31,6 +31,7 @@ private:
 	// Communication Variables
 	SPI_HandleTypeDef* display_spi;
 	SPI_HandleTypeDef* touch_spi;
+	TIM_HandleTypeDef* touch_timer_poll;
 	static constexpr int TEMP_BUFFER_SIZE = 256;
 	static constexpr int NUM_RGB = 3;
 	uint8_t temp[TEMP_BUFFER_SIZE][NUM_RGB];
@@ -161,7 +162,43 @@ private:
 public:
 	Screen() = default;
 
-	void init (SPI_HandleTypeDef* display_spi_in, SPI_HandleTypeDef* touch_spi_in) {
+	void draw_box(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t r, uint8_t g, uint8_t b){
+		// draw the button on the screen
+		uint8_t caset[] = {static_cast<uint8_t>((x >> 8) & 0xFF), static_cast<uint8_t>(x & 0xFF), static_cast<uint8_t>(((x + w - 1) >> 8) & 0xFF), static_cast<uint8_t>((x + w - 1) & 0xFF)};
+		send_cmd(SCREEN_CMD::CASET);
+		send_data(caset, sizeof(caset));
+
+		uint8_t paset[] = {static_cast<uint8_t>((y >> 8) & 0xFF), static_cast<uint8_t>(y & 0xFF), static_cast<uint8_t>(((y + h - 1) >> 8) & 0xFF), static_cast<uint8_t>((y + h - 1) & 0xFF)};
+		send_cmd(SCREEN_CMD::PASET);
+		send_data(paset, sizeof(paset));
+
+		unsigned int num_pixels = w * h;
+		uint8_t rgb[NUM_RGB] = {r, g, b};
+
+		for(int i = 0; i < TEMP_BUFFER_SIZE; ++i){
+			temp[i][0] = rgb[0];
+			temp[i][1] = rgb[1];
+			temp[i][2] = rgb[2];
+		}
+
+		send_cmd(SCREEN_CMD::RAMWR);
+
+		for(unsigned int i = 0; i < (num_pixels + TEMP_BUFFER_SIZE - 1) / TEMP_BUFFER_SIZE; ++i){
+			send_data(&temp[0][0], sizeof(temp));
+		}
+	}
+
+	void clear(){
+		// clear the screen to the background color
+		draw_box(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, BACKGROUND_R, BACKGROUND_G, BACKGROUND_B);
+
+		num_buttons = 0;
+		for(int i = 0; i < NUM_BUTTONS; ++i){
+			buttons[i].valid = false;
+		}
+	}
+
+	void init (SPI_HandleTypeDef* display_spi_in, SPI_HandleTypeDef* touch_spi_in, TIM_HandleTypeDef* touch_timer_poll_in) {
 		printf("Initializing Screen\r\n");
 		ILI9488_Init();
 
@@ -169,11 +206,9 @@ public:
 		display_spi = display_spi_in;
 		touch_spi = touch_spi_in;
 
-		// we have not initialized any buttons
-		num_buttons = 0;
-		for(int i = 0; i < NUM_BUTTONS; ++i){
-			buttons[i].valid = false;
-		}
+		// the timer we are going to use to poll the screen
+		touch_timer_poll = touch_timer_poll_in;
+		HAL_TIM_Base_Start_IT(touch_timer_poll);
 	}
 
 	void draw_button(uint16_t x, uint16_t y, uint16_t w, uint16_t h, void (*callback)(), char const* text){
@@ -333,32 +368,5 @@ public:
 
 	void draw_image_row(uint8_t* buf, int len){
 		send_data(buf, len);
-	}
-
-	void draw_box(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t r, uint8_t g, uint8_t b){
-		// draw the button on the screen
-		uint8_t caset[] = {static_cast<uint8_t>((x >> 8) & 0xFF), static_cast<uint8_t>(x & 0xFF), static_cast<uint8_t>(((x + w - 1) >> 8) & 0xFF), static_cast<uint8_t>((x + w - 1) & 0xFF)};
-		send_cmd(SCREEN_CMD::CASET);
-		send_data(caset, sizeof(caset));
-
-		uint8_t paset[] = {static_cast<uint8_t>((y >> 8) & 0xFF), static_cast<uint8_t>(y & 0xFF), static_cast<uint8_t>(((y + h - 1) >> 8) & 0xFF), static_cast<uint8_t>((y + h - 1) & 0xFF)};
-		send_cmd(SCREEN_CMD::PASET);
-		send_data(paset, sizeof(paset));
-
-		unsigned int num_pixels = w * h;
-		uint8_t rgb[NUM_RGB] = {r, g, b};
-
-		for(int i = 0; i < TEMP_BUFFER_SIZE; ++i){
-			temp[i][0] = rgb[0];
-			temp[i][1] = rgb[1];
-			temp[i][2] = rgb[2];
-		}
-
-		send_cmd(SCREEN_CMD::RAMWR);
-
-		for(unsigned int i = 0; i < (num_pixels + TEMP_BUFFER_SIZE - 1) / TEMP_BUFFER_SIZE; ++i){
-			send_data(&temp[0][0], sizeof(temp));
-		}
-
 	}
 };

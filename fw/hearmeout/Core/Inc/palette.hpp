@@ -23,3 +23,9 @@ static constexpr uint8_t PROGRESS_BAR_FOREGROUND_R = 0;
 static constexpr uint8_t PROGRESS_BAR_FOREGROUND_G = 255;
 static constexpr uint8_t PROGRESS_BAR_FOREGROUND_B = 0;
 // PROGRESS BAR //
+
+// SCREEN //
+static constexpr uint8_t BACKGROUND_R = 101;
+static constexpr uint8_t BACKGROUND_G = 101;
+static constexpr uint8_t BACKGROUND_B = 101;
+// SCREEN //
