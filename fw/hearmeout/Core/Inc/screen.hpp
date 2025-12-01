@@ -6,14 +6,6 @@
 #include "font.hpp"
 #include "palette.hpp"
 
-
-// TODO: Remove all of these external dependencies
-extern "C" {
-
-void ILI9488_Init();
-
-}
-
 /*
  * Pixel coordinates start from the bottom left
  */
@@ -22,7 +14,21 @@ enum SCREEN_CMD : uint8_t {
 	CASET = 0x2A,
 	PASET = 0x2B,
 	RAMWR = 0x2C,
-	MADCTL = 0x36
+	MADCTL = 0x36,
+	PGAMCTRL = 0xE0,
+	NGAMCTRL = 0xE1,
+	PWCTRL1 = 0xC0,
+	PWCTRL2 = 0xC1,
+	VMCTRL = 0xC5,
+	COLMOD = 0x3A,
+	IFMODE = 0xB0,
+	FRMCTR1 = 0xB1,
+	SLPOUT = 0x11,
+	DISON = 0x29,
+	INVTR = 0xB4,
+	DISCTRL = 0xB6,
+	SETIMAGE = 0xE9,
+	ADJCTRL = 0xF7
 };
 
 class Screen {
@@ -81,13 +87,21 @@ private:
 		HAL_GPIO_WritePin(GPIOF, GPIO_PIN_5, GPIO_PIN_SET);
 	}
 
+	void rst_low(){
+		HAL_GPIO_WritePin(GPIOF, GPIO_PIN_3, GPIO_PIN_RESET);
+	}
+
+	void rst_high(){
+		HAL_GPIO_WritePin(GPIOF, GPIO_PIN_3, GPIO_PIN_SET);
+	}
+
 	void send_cmd(SCREEN_CMD cmd){
 		HAL_StatusTypeDef status{};
-		// select the touchscreen chip
-		cs_low();
-
 		 // turn D/C low to indicate a command
 		dc_low();
+
+		// select the touchscreen chip
+		cs_low();
 
 		status = HAL_SPI_Transmit(display_spi, reinterpret_cast<uint8_t const*>(&cmd), sizeof(SCREEN_CMD), HAL_MAX_DELAY); // send the CASET command
 
@@ -102,21 +116,23 @@ private:
 
 	void send_data(uint8_t* buf, int len){
 		HAL_StatusTypeDef status{};
-		// select the touchscreen chip
-		cs_low();
 
-		 // turn D/C low to indicate a command
+		// turn D/C low to indicate a command
 		dc_high();
 
+		// select the touchscreen chip
+		cs_low();
 		status = HAL_SPI_Transmit(display_spi, buf, len, HAL_MAX_DELAY); // send the data
+
+		// deselect the touchscreen chip
+		cs_high();
 
 		// check the status
 		if(status != HAL_OK){
 			printf("Error Occured while sending SPI data\r\n");
 		}
 
-		// deselect the touchscreen chip
-		cs_high();
+
 	}
 
 	void render_button(uint16_t index){
@@ -200,11 +216,113 @@ public:
 
 	void init (SPI_HandleTypeDef* display_spi_in, SPI_HandleTypeDef* touch_spi_in, TIM_HandleTypeDef* touch_timer_poll_in) {
 		printf("Initializing Screen\r\n");
-		ILI9488_Init();
 
 		// get the spi device we will talk over
 		display_spi = display_spi_in;
 		touch_spi = touch_spi_in;
+
+		cs_high();
+		rst_low();
+		HAL_Delay(10);
+		rst_high();
+
+		// set the gamma config
+		// using gamma configuration from https://github.com/squadracorsepolito/ILI9488/blob/master/ili9488.c
+		uint8_t p_gamma_config[] = {
+				0x00,
+				0x13,
+				0x18,
+				0x04,
+				0x0F,
+				0x06,
+				0x3A,
+				0x56,
+				0x4D,
+				0x03,
+				0x0A,
+				0x06,
+				0x30,
+				0x3E,
+				0x0F
+		};
+		send_cmd(SCREEN_CMD::PGAMCTRL);
+		send_data(p_gamma_config, sizeof(p_gamma_config));
+
+		uint8_t n_gamma_config[] = {
+				0x00,
+				0x13,
+				0x18,
+				0x01,
+				0x11,
+				0x06,
+				0x38,
+				0x34,
+				0x4D,
+				0x06,
+				0x0D,
+				0x0B,
+				0x31,
+				0x37,
+				0x0F
+		};
+		send_cmd(SCREEN_CMD::NGAMCTRL);
+		send_data(n_gamma_config, sizeof(n_gamma_config));
+
+		// power settings
+		uint8_t pwrctl1[] = {0x17, 0x15};
+		send_cmd(SCREEN_CMD::PWCTRL1);
+		send_data(pwrctl1, sizeof(pwrctl1));
+		uint8_t pwrctl2[] = {0x41};
+		send_cmd(SCREEN_CMD::PWCTRL2);
+		send_data(pwrctl2, sizeof(pwrctl2));
+
+		uint8_t vmctrl[] = {0x00, 0x12, 0x80};
+		send_cmd(SCREEN_CMD::VMCTRL);
+		send_data(vmctrl, sizeof(vmctrl));
+
+		// memory access pattern
+		uint8_t madctl[] = {0x28};
+		send_cmd(SCREEN_CMD::MADCTL);
+		send_data(madctl, sizeof(madctl));
+
+		// choose pixel interface
+		uint8_t colmod[] = {0x66};
+		send_cmd(SCREEN_CMD::COLMOD);
+		send_data(colmod, sizeof(colmod));
+
+		// choose interface
+		uint8_t ifmode[] = {0x80};
+		send_cmd(SCREEN_CMD::IFMODE);
+		send_data(ifmode, sizeof(ifmode));
+
+		// choose framerate
+		uint8_t frmctr1[] = {0xA0};
+		send_cmd(SCREEN_CMD::FRMCTR1);
+		send_data(frmctr1, sizeof(frmctr1));
+
+		uint8_t invtr[] = {0x02};
+		send_cmd(SCREEN_CMD::INVTR);
+		send_data(invtr, sizeof(invtr));
+
+		send_cmd(SCREEN_CMD::DISCTRL);
+		send_data(invtr, sizeof(invtr));
+		send_data(invtr, sizeof(invtr));
+
+		// choose image set
+		uint8_t setimage[] = {0x00};
+		send_cmd(SCREEN_CMD::SETIMAGE);
+		send_data(setimage, sizeof(setimage));
+
+		// choose image set
+		uint8_t adjctrl[] = {0xA9, 0x51, 0x2C, 0x82};
+		send_cmd(SCREEN_CMD::ADJCTRL);
+		send_data(adjctrl, sizeof(adjctrl));
+
+		send_cmd(SCREEN_CMD::SLPOUT);
+
+		HAL_Delay(150);
+
+		send_cmd(SCREEN_CMD::DISON);
 
 		// the timer we are going to use to poll the screen
 		touch_timer_poll = touch_timer_poll_in;

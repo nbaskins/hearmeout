@@ -35,14 +35,20 @@ STATE prev_state;
 
 void pause_callback(){
 	printf("Pause\r\n");
-	sd.request_pause();
-	jack.request_pause();
+	if(state == STATE::SD_CARD){
+		sd.request_pause();
+	}else if(state == STATE::AUDIO_JACK){
+		jack.request_pause();
+	}
 }
 
 void play_callback(){
 	printf("Play\r\n");
-	sd.request_play();
-	jack.request_play();
+	if(state == STATE::SD_CARD){
+		sd.request_play();
+	}else if(state == STATE::AUDIO_JACK){
+		jack.request_play();
+	}
 }
 
 void skip_callback(){
@@ -92,11 +98,11 @@ void event_loop() {
 			sd.pause();
 			if(state == STATE::SD_CARD){
 				render_sd_gui();
-				sd.display_image(sd.get_song_name(), 272, 66, 152, 150, &screen);
+				sd.display_image(sd.get_song_name() + ".bmp", 272, 66, 152, 150, &screen);
 				sd.request_play();
 			}else if(state == STATE::AUDIO_JACK){
 				render_jack_gui();
-				sd.display_image("0://Bodies - Dominic Fike", 272, 66, 152, 150, &screen);
+				sd.display_image("0://aux.bmp", 272, 66, 152, 150, &screen);
 				jack.request_play();
 			}
 		}
@@ -115,7 +121,7 @@ void event_loop() {
 
 void song_finished_callback(){
 	printf("Song Finished\r\n");
-	sd.display_image(sd.get_song_name(), 272, 66, 152, 150, &screen);
+	sd.display_image(sd.get_song_name() + ".bmp", 272, 66, 152, 150, &screen);
 }
 
 void song_duration_callback(uint32_t current_song_duration, uint32_t prev_song_duration, uint32_t total_song_duration){
