@@ -16,7 +16,7 @@ extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern TIM_HandleTypeDef htim5;
 extern DMA_HandleTypeDef hdma_tim1_up;
-extern UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef huart3;
 extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi3;
 extern ADC_HandleTypeDef hadc1;
@@ -137,7 +137,7 @@ void song_duration_callback(uint32_t current_song_duration, uint32_t prev_song_d
 
 // initialize program and start event_loop
 void init() {
-	gimbal.init(&htim4, &htim5, &huart1);
+	gimbal.init(&htim4, &htim5, &huart3);
 	gimbal.request_pos();
 
 	jack.init(&hadc1, &hopamp2);
