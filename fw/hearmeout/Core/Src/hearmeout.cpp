@@ -7,8 +7,8 @@
 #include "sd.hpp"
 
 extern TIM_HandleTypeDef htim1;
-extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
+extern TIM_HandleTypeDef htim5;
 extern DMA_HandleTypeDef hdma_tim1_up;
 extern UART_HandleTypeDef huart2;
 //
@@ -26,7 +26,7 @@ void event_loop() {
 // initialize program and start event_loop
 void init() {
 //	sd.init(filename, &htim1, &hdma_tim1_up);
-	gimbal.init(&htim3, &htim4, &huart2);
+	gimbal.init(&htim4, &htim5, &huart2);
 	gimbal.request_pos();
 	event_loop();
 }
@@ -35,7 +35,7 @@ void init() {
 extern "C" {
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == TIM4) {
+    if (htim->Instance == TIM5) {
     	gimbal.request_pos();
     }
 }
