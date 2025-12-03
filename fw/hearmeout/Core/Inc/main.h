@@ -81,7 +81,9 @@ void HAL_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma);
 #define Gimbal_TIM_h_GPIO_Port GPIOD
 #define SD_SPI_CS_Pin GPIO_PIN_14
 #define SD_SPI_CS_GPIO_Port GPIOD
-#define Gimbal_UART_RX_Pin GPIO_PIN_15
+#define Gimbal_UART_TXA9_Pin GPIO_PIN_9
+#define Gimbal_UART_TXA9_GPIO_Port GPIOA
+#define Gimbal_UART_RX_Pin GPIO_PIN_10
 #define Gimbal_UART_RX_GPIO_Port GPIOA
 #define Screen_SCK_Pin GPIO_PIN_10
 #define Screen_SCK_GPIO_Port GPIOC

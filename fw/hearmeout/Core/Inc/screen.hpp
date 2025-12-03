@@ -214,7 +214,7 @@ public:
 	}
 
 	void init (SPI_HandleTypeDef* display_spi_in, SPI_HandleTypeDef* touch_spi_in, TIM_HandleTypeDef* touch_timer_poll_in) {
-		printf("Initializing Screen\r\n");
+//		printf("Initializing Screen\r\n");
 
 		// get the spi device we will talk over
 		display_spi = display_spi_in;
