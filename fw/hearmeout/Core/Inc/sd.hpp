@@ -433,7 +433,7 @@ public:
 			}
 			*/
 		}else{
-			printf("Decoding 24 bit BMP file...\r\n", fr);
+			printf("Decoding 24 bit BMP file...\r\n");
 			for(int row = album_cover_height - 1; row >= 0; row -= ALBUM_READ_WIDTH){
 				screen->draw_image_init(x, y + row, ALBUM_W, ALBUM_READ_WIDTH);
 				Pixel row_buffer_bgr[ALBUM_READ_WIDTH * ALBUM_W];

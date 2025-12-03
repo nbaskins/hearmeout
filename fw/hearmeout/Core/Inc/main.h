@@ -59,14 +59,49 @@ void HAL_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define D_RST_Pin GPIO_PIN_3
-#define D_RST_GPIO_Port GPIOF
-#define SPI_CS_Pin GPIO_PIN_14
-#define SPI_CS_GPIO_Port GPIOD
-#define T_CS_Pin GPIO_PIN_0
-#define T_CS_GPIO_Port GPIOD
-#define D_CS_Pin GPIO_PIN_2
-#define D_CS_GPIO_Port GPIOD
+#define Screen_RST_Pin GPIO_PIN_3
+#define Screen_RST_GPIO_Port GPIOF
+#define Screen_DC_Pin GPIO_PIN_5
+#define Screen_DC_GPIO_Port GPIOF
+#define Gimbal_UART_TX_Pin GPIO_PIN_2
+#define Gimbal_UART_TX_GPIO_Port GPIOA
+#define HBridge_PWM_Pin GPIO_PIN_5
+#define HBridge_PWM_GPIO_Port GPIOA
+#define HBridge_DIR_Pin GPIO_PIN_9
+#define HBridge_DIR_GPIO_Port GPIOE
+#define SD_SPI_SCK_Pin GPIO_PIN_13
+#define SD_SPI_SCK_GPIO_Port GPIOE
+#define SD_SPI_MISO_Pin GPIO_PIN_14
+#define SD_SPI_MISO_GPIO_Port GPIOE
+#define SD_SPI_MOSI_Pin GPIO_PIN_15
+#define SD_SPI_MOSI_GPIO_Port GPIOE
+#define Gimbal_TIM_v_Pin GPIO_PIN_12
+#define Gimbal_TIM_v_GPIO_Port GPIOD
+#define Gimbal_TIM_h_Pin GPIO_PIN_13
+#define Gimbal_TIM_h_GPIO_Port GPIOD
+#define SD_SPI_CS_Pin GPIO_PIN_14
+#define SD_SPI_CS_GPIO_Port GPIOD
+#define Gimbal_UART_RX_Pin GPIO_PIN_15
+#define Gimbal_UART_RX_GPIO_Port GPIOA
+#define Screen_SCK_Pin GPIO_PIN_10
+#define Screen_SCK_GPIO_Port GPIOC
+#define Screen_SDO_Pin GPIO_PIN_11
+#define Screen_SDO_GPIO_Port GPIOC
+#define Screen_SDI_Pin GPIO_PIN_12
+#define Screen_SDI_GPIO_Port GPIOC
+#define Screen_TCS_Pin GPIO_PIN_0
+#define Screen_TCS_GPIO_Port GPIOD
+#define Screen_TCK_Pin GPIO_PIN_1
+#define Screen_TCK_GPIO_Port GPIOD
+#define Screen_CS_Pin GPIO_PIN_2
+#define Screen_CS_GPIO_Port GPIOD
+#define Screen_TDO_Pin GPIO_PIN_3
+#define Screen_TDO_GPIO_Port GPIOD
+#define Screen_TDI_Pin GPIO_PIN_4
+#define Screen_TDI_GPIO_Port GPIOD
+#define Screen_PEN_Pin GPIO_PIN_7
+#define Screen_PEN_GPIO_Port GPIOD
+#define Screen_PEN_EXTI_IRQn EXTI9_5_IRQn
 
 /* USER CODE BEGIN Private defines */
 

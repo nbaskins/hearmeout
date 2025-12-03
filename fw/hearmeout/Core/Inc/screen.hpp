@@ -146,7 +146,6 @@ private:
 		send_data(paset, sizeof(paset));
 
 		unsigned int num_pixels = buttons[index].w * buttons[index].h;
-		uint8_t button_rgb[NUM_RGB];
 
 		if(buttons[index].button_state == BUTTON_STATE::UNPRESSED){
 			for(int i = 0; i < TEMP_BUFFER_SIZE; ++i){
