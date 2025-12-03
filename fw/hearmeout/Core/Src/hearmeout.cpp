@@ -1,3 +1,4 @@
+#include <gimbal.hpp>
 #include <stdbool.h>
 #include <string.h>
 #include <cstdio>
@@ -6,35 +7,42 @@
 #include "sd.hpp"
 
 extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim4;
 extern DMA_HandleTypeDef hdma_tim1_up;
-
-const char* filename = "433.wav"; // name of audio file to update CCR
-SD sd; // sd object used to handle updating CCR based on audio file
+extern UART_HandleTypeDef huart2;
+//
+//const char* filename = "433.wav"; // name of audio file to update CCR
+//SD sd; // sd object used to handle updating CCR based on audio file
+Gimbal gimbal; // need to update cam class to have default constuctor with init function
 
 // main loop
 void event_loop() {
-	while (true) {
-        sd.check_prod();
+    while (true) {
+    	gimbal.poll_dma();
     }
 }
 
 // initialize program and start event_loop
 void init() {
-	sd.init(filename, &htim1, &hdma_tim1_up);
+//	sd.init(filename, &htim1, &hdma_tim1_up);
+	gimbal.init(&htim3, &htim4, &huart2);
+	gimbal.request_pos();
 	event_loop();
 }
 
 // HAL C functions
 extern "C" {
 
-void HAL_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma) {
-	if(hdma == &hdma_tim1_up)
-		sd.handle_dma_cb();
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+    if (htim->Instance == TIM4) {
+    	gimbal.request_pos();
+    }
 }
 
-// called by main.h allows for C++ projects
 void HAL_PostInit() {
     init();
 }
 
 }
+

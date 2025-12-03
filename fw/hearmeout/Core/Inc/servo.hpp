@@ -23,8 +23,8 @@ public:
 			angle = 180;
 
 		// find CCR for angle and set based on htim_ptr ARR
-		uint32_t min_ccr = (htim_ptr->Instance->ARR + 1) / 20;
-		uint32_t ccr = min_ccr + (angle * min_ccr) / 180;
+		uint32_t min_ccr = (htim_ptr->Instance->ARR + 1) / 5;
+		uint32_t ccr = min_ccr + (angle * (htim_ptr->Instance->ARR + 1 - min_ccr)) / 270;
 		__HAL_TIM_SET_COMPARE(htim_ptr, channel, ccr);
 	}
 };
