@@ -116,7 +116,11 @@ public:
         __HAL_TIM_SET_COMPARE(servo_tim, TIM_CHANNEL_1, A_v);
         __HAL_TIM_SET_COMPARE(servo_tim, TIM_CHANNEL_2, A_h);
 
-        HAL_UART_Receive_DMA(uart, dma_rx_buf, DMA_RX_BUFFER_SIZE);
+        HAL_UARTEx_ReceiveToIdle_DMA(uart, dma_rx_buf, DMA_RX_BUFFER_SIZE);
+    }
+
+    void process_rx_bytes(uint16_t size) {
+    	process_bytes(dma_rx_buf, size);
     }
 
     // requests a pixy block from the pixy cam

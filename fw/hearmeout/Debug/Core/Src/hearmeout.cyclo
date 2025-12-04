@@ -2,14 +2,15 @@
 ../Core/Inc/gimbal.hpp:56:10:void Gimbal::handle_block(const PixyBlock&)	2
 ../Core/Inc/gimbal.hpp:70:10:void Gimbal::process_bytes(uint8_t*, uint16_t)	9
 ../Core/Inc/gimbal.hpp:97:10:void Gimbal::init(TIM_HandleTypeDef*, TIM_HandleTypeDef*, UART_HandleTypeDef*)	1
-../Core/Inc/gimbal.hpp:123:10:void Gimbal::request_pos()	1
-../Core/Inc/gimbal.hpp:128:10:void Gimbal::poll_dma()	3
-../Core/Inc/gimbal.hpp:144:14:uint16_t Gimbal::calculate_A_v(uint16_t, uint16_t)	7
-../Core/Inc/gimbal.hpp:158:14:uint16_t Gimbal::calculate_A_h(uint16_t, uint16_t)	7
+../Core/Inc/gimbal.hpp:122:10:void Gimbal::process_rx_bytes(uint16_t)	1
+../Core/Inc/gimbal.hpp:127:10:void Gimbal::request_pos()	1
+../Core/Inc/gimbal.hpp:148:14:uint16_t Gimbal::calculate_A_v(uint16_t, uint16_t)	7
+../Core/Inc/gimbal.hpp:162:14:uint16_t Gimbal::calculate_A_h(uint16_t, uint16_t)	7
 ../Core/Inc/gimbal.hpp:94:5:Gimbal::Gimbal()	1
-../Core/Src/hearmeout.cpp:20:6:void event_loop()	1
-../Core/Src/hearmeout.cpp:27:6:void init()	1
-../Core/Src/hearmeout.cpp:37:6:void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef*)	2
-../Core/Src/hearmeout.cpp:43:6:void HAL_PostInit()	1
-../Core/Src/hearmeout.cpp:47:1:void __static_initialization_and_destruction_0()	1
-../Core/Src/hearmeout.cpp:47:1:cpp)	1
+../Core/Src/hearmeout.cpp:21:6:void event_loop()	2
+../Core/Src/hearmeout.cpp:31:6:void init()	1
+../Core/Src/hearmeout.cpp:41:6:void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef*)	2
+../Core/Src/hearmeout.cpp:47:6:void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef*, uint16_t)	2
+../Core/Src/hearmeout.cpp:52:6:void HAL_PostInit()	1
+../Core/Src/hearmeout.cpp:56:1:void __static_initialization_and_destruction_0()	1
+../Core/Src/hearmeout.cpp:56:1:cpp)	1

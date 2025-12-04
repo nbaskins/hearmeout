@@ -15,11 +15,15 @@ extern UART_HandleTypeDef huart2;
 //const char* filename = "433.wav"; // name of audio file to update CCR
 //SD sd; // sd object used to handle updating CCR based on audio file
 Gimbal gimbal; // need to update cam class to have default constuctor with init function
+volatile bool send_req = false;
 
 // main loop
 void event_loop() {
     while (true) {
-    	gimbal.poll_dma();
+    	if (send_req) {
+    		send_req = false;
+    		gimbal.request_pos();
+    	}
     }
 }
 
@@ -36,8 +40,13 @@ extern "C" {
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM5) {
-    	gimbal.request_pos();
+    	send_req = true;
     }
+}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
+    if (huart == &huart2)
+        gimbal.process_rx_bytes(size);
 }
 
 void HAL_PostInit() {
