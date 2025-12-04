@@ -16,17 +16,17 @@ extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern TIM_HandleTypeDef htim5;
 extern DMA_HandleTypeDef hdma_tim1_up;
-extern UART_HandleTypeDef huart3;
+extern UART_HandleTypeDef huart2;
 extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi3;
 extern ADC_HandleTypeDef hadc1;
-extern OPAMP_HandleTypeDef hopamp1;
 extern OPAMP_HandleTypeDef hopamp2;
 
 SD sd; // sd object used to handle updating CCR based on audio file
 Gimbal gimbal;
 Screen screen;
 AudioJack jack;
+volatile bool send_req = false;
 
 enum STATE : uint8_t{
 	SD_CARD = 0,
@@ -87,6 +87,11 @@ void render_jack_gui(){
 // main loop
 void event_loop() {
 	while (true) {
+		if (send_req) {
+			send_req = false;
+			gimbal.request_pos();
+		}
+
 		gimbal.poll_dma(); // check for any changes in pixy cam data
 
 		// pause one of either the SD card or the Audio Jack in order to prevent them from both
@@ -119,7 +124,6 @@ void event_loop() {
 			sd.check_next();
 		}else if(state == STATE::AUDIO_JACK){
 			jack.check_next();
-			// No Events for the audio jack
 		}
     }
 }
@@ -137,7 +141,7 @@ void song_duration_callback(uint32_t current_song_duration, uint32_t prev_song_d
 
 // initialize program and start event_loop
 void init() {
-	gimbal.init(&htim4, &htim5, &huart3);
+	gimbal.init(&htim4, &htim5, &huart2);
 	gimbal.request_pos();
 
 	jack.init(&hadc1, &hopamp2);
@@ -195,7 +199,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			last_interrupt_time = interrupt_time;
 		}
 	} else if (htim->Instance == TIM5) {
-		gimbal.request_pos();
+		send_req = true;
 	}
 }
 
