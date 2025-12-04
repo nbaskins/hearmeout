@@ -200,7 +200,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		prev_z = alpha * touch_z + (1 - alpha) * prev_z;
 
 		if(interrupt_time - last_interrupt_time > TICKS_PER_FRAME){
-			printf("Sampled %u %u %u\r\n", touch_x, touch_y, static_cast<uint16_t>(prev_z));
+//			printf("Sampled %u %u %u\r\n", touch_x, touch_y, static_cast<uint16_t>(prev_z));
 			screen.check_buttons(touch_x, touch_y, prev_z);
 			last_interrupt_time = interrupt_time;
 		}
