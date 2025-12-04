@@ -14,7 +14,7 @@
 #include <vector>
 #include <string>
 
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE 1024
 
 typedef struct {
     uint8_t r;
@@ -199,7 +199,7 @@ public:
 	//htim2 --> 80kHz modulated PWM
 
 	void init (TIM_HandleTypeDef* htim1_in, TIM_HandleTypeDef* htim2_in, DMA_HandleTypeDef* hdma_in, void (*song_finished_callback_in)(), void (*song_duration_callback_in)(uint32_t, uint32_t, uint32_t)) {
-		printf("Initializing system... \r\n");
+//		printf("Initializing system... \r\n");
 		// set member variable values
 		htim1_DIR = htim1_in;
 		htim2_EN = htim2_in;
@@ -215,16 +215,16 @@ public:
 		FRESULT fr;
 
 		// mount the SD card
-		printf("Mounting SD Card.. \r\n");
+//		printf("Mounting SD Card.. \r\n");
 		fr = sd_mount();
 		if (fr != FR_OK)
 			printf("SD Mount Failed with code: %d\r\n", fr);
-		else
-			printf("SD Mounted!\n");
+//		else
+//			printf("SD Mounted!\n");
 
 		wav_paths.clear();
 		// get all wav file paths
-		printf("Reading in files from SD card... \r\n");
+//		printf("Reading in files from SD card... \r\n");
 		get_files(sd_path, 0);
 		songName = wav_paths[current_wav];
 
@@ -235,7 +235,7 @@ public:
 		if (fr != FR_OK)
 			printf("f_open failed with code: %d\r\n", fr);
 
-		printf("Now playing: %s\r\n", songName.c_str());
+//		printf("Now playing: %s\r\n", songName.c_str());
 		//skip to PCM, fill buffers, start timer, PWM, start DMA
 		start_song();
 	}
@@ -372,7 +372,7 @@ public:
 
 	    start_song();
 
-	    printf("Now playing: %s\r\n", songName.c_str());
+//	    printf("Now playing: %s\r\n", songName.c_str());
 
 	    song_finished_callback();
 	}
@@ -433,7 +433,7 @@ public:
 			}
 			*/
 		}else{
-			printf("Decoding 24 bit BMP file...\r\n", fr);
+//			printf("Decoding 24 bit BMP file...\r\n");
 			for(int row = album_cover_height - 1; row >= 0; row -= ALBUM_READ_WIDTH){
 				screen->draw_image_init(x, y + row, ALBUM_W, ALBUM_READ_WIDTH);
 				Pixel row_buffer_bgr[ALBUM_READ_WIDTH * ALBUM_W];

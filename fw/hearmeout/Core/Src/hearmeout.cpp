@@ -7,21 +7,26 @@
 #include "sd.hpp"
 #include "screen.hpp"
 #include "palette.hpp"
+#include "gimbal.hpp"
 #include "audio_jack.hpp"
 
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim4;
+extern TIM_HandleTypeDef htim5;
+extern UART_HandleTypeDef huart2;
 extern DMA_HandleTypeDef hdma_tim1_up;
 extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi3;
 extern ADC_HandleTypeDef hadc1;
-extern OPAMP_HandleTypeDef hopamp1;
 extern OPAMP_HandleTypeDef hopamp2;
 
 SD sd; // sd object used to handle updating CCR based on audio file
 Screen screen;
 AudioJack jack;
+Gimbal gimbal; // need to update cam class to have default constuctor with init function
+volatile bool send_req = false;
 
 enum STATE : uint8_t{
 	SD_CARD = 0,
@@ -84,6 +89,11 @@ void render_jack_gui(){
 // main loop
 void event_loop() {
 	while (true) {
+		if (send_req) {
+			send_req = false;
+			gimbal.request_pos();
+		}
+
 		// pause one of either the SD card or the Audio Jack in order to prevent them from both
 		if(state == STATE::SD_CARD){
 			jack.pause();
@@ -132,6 +142,9 @@ void song_duration_callback(uint32_t current_song_duration, uint32_t prev_song_d
 
 // initialize program and start event_loop
 void init() {
+	gimbal.init(&htim4, &htim5, &huart2);
+	gimbal.request_pos();
+
 	jack.init(&hadc1, &hopamp2);
 	screen.init(&hspi3, &hspi2, &htim3);
 
@@ -163,32 +176,37 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
 	}
 }
 
-// callback for button press
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
+    if (huart == &huart2)
+        gimbal.process_rx_bytes(size);
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  if (htim == &htim3) {
-	static float prev_z = 0;
-	static constexpr float alpha = 0.15;
+	if (htim == &htim3) {
+		static float prev_z = 0;
+		static constexpr float alpha = 0.15;
 
-	// frame rate controls
-	static constexpr unsigned long TICKS_PER_FRAME = 500;
-	static unsigned long last_interrupt_time = 0;
-	unsigned long interrupt_time = HAL_GetTick();
+		// frame rate controls
+		static constexpr unsigned long TICKS_PER_FRAME = 500;
+		static unsigned long last_interrupt_time = 0;
+		unsigned long interrupt_time = HAL_GetTick();
 
-	uint16_t touch_x;
-	uint16_t touch_y;
-	uint16_t touch_z;
-	screen.sample_x_y(&touch_x, &touch_y, &touch_z);
-	prev_z = alpha * touch_z + (1 - alpha) * prev_z;
-	if(interrupt_time - last_interrupt_time > TICKS_PER_FRAME){
-		printf("Sampled %u %u %u\r\n", touch_x, touch_y, static_cast<uint16_t>(prev_z));
-		screen.check_buttons(touch_x, touch_y, prev_z);
-		last_interrupt_time = interrupt_time;
+		uint16_t touch_x;
+		uint16_t touch_y;
+		uint16_t touch_z;
+
+		screen.sample_x_y(&touch_x, &touch_y, &touch_z);
+		prev_z = alpha * touch_z + (1 - alpha) * prev_z;
+
+		if(interrupt_time - last_interrupt_time > TICKS_PER_FRAME){
+			printf("Sampled %u %u %u\r\n", touch_x, touch_y, static_cast<uint16_t>(prev_z));
+			screen.check_buttons(touch_x, touch_y, prev_z);
+			last_interrupt_time = interrupt_time;
+		}
+	} else if (htim == &htim5) {
+		send_req = true;
 	}
-  }
 }
 
 // called by main.h allows for C++ projects
