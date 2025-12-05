@@ -94,6 +94,8 @@ void event_loop() {
 			gimbal.request_pos();
 		}
 
+		gimbal.poll_dma();
+
 		// pause one of either the SD card or the Audio Jack in order to prevent them from both
 		if(state == STATE::SD_CARD){
 			jack.pause();
@@ -174,11 +176,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
 		uint32_t ccr = (static_cast<float>(adc_val) / static_cast<float>(MAX_ADC_VAL)) * htim2.Instance->ARR;
 		htim2.Instance->CCR1 = ccr;
 	}
-}
-
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size) {
-    if (huart == &huart2)
-        gimbal.process_rx_bytes(size);
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)

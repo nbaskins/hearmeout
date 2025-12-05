@@ -16,7 +16,7 @@ private:
     TIM_HandleTypeDef* servo_tim; // servo timer handle
     TIM_HandleTypeDef* cam_tim; // camera interrupt timer handle
     UART_HandleTypeDef* uart; // uart handle
-    uint16_t max_step; // max CCR step size for the servos (300 seems to work well)
+    uint16_t max_step; // max CCR step size for the servos
     float smooth_x; // smoothed value for x direction (value after alpha is applied)
     float smooth_y; // smoothed value for y direction (value after alpha is applied)
     float alpha; // smoothing factor to reduce jumping from camera jitter
@@ -99,10 +99,10 @@ public:
         cam_tim = cam_tim_in;
         uart = uart_in;
 
-        max_step = 300;
+        max_step = 10;
         smooth_x = 157.5f;
         smooth_y = 103.5f;
-        alpha = 1.0f;
+        alpha = 0.5f;
         A_v = 1500;
         A_h = 1500;
 
@@ -116,11 +116,7 @@ public:
         __HAL_TIM_SET_COMPARE(servo_tim, TIM_CHANNEL_1, A_v);
         __HAL_TIM_SET_COMPARE(servo_tim, TIM_CHANNEL_2, A_h);
 
-        HAL_UARTEx_ReceiveToIdle_DMA(uart, dma_rx_buf, DMA_RX_BUFFER_SIZE);
-    }
-
-    void process_rx_bytes(uint16_t size) {
-    	process_bytes(dma_rx_buf, size);
+        HAL_UART_Receive_DMA(uart, dma_rx_buf, DMA_RX_BUFFER_SIZE);
     }
 
     // requests a pixy block from the pixy cam
