@@ -61,6 +61,10 @@ void HAL_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma);
 /* Private defines -----------------------------------------------------------*/
 #define D_RST_Pin GPIO_PIN_3
 #define D_RST_GPIO_Port GPIOF
+#define Gimbal_UART_TX_Pin GPIO_PIN_2
+#define Gimbal_UART_TX_GPIO_Port GPIOA
+#define Gimbal_UART_RX_Pin GPIO_PIN_3
+#define Gimbal_UART_RX_GPIO_Port GPIOA
 #define SPI_CS_Pin GPIO_PIN_14
 #define SPI_CS_GPIO_Port GPIOD
 #define T_CS_Pin GPIO_PIN_0
