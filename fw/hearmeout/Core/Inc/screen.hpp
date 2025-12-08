@@ -5,6 +5,7 @@
 
 #include "font.hpp"
 #include "palette.hpp"
+#include <algorithm>
 
 /*
  * Pixel coordinates start from the bottom left
@@ -281,7 +282,7 @@ public:
 		send_data(vmctrl, sizeof(vmctrl));
 
 		// memory access pattern
-		uint8_t madctl[] = {0x28};
+		uint8_t madctl[] = {0xE8};
 		send_cmd(SCREEN_CMD::MADCTL);
 		send_data(madctl, sizeof(madctl));
 
@@ -366,9 +367,6 @@ public:
 
 				// rerender the button
 				render_button(i);
-
-				// call the buttons callback
-				(*buttons[i].callback)();
 			}
 
 			// detect falling edge
@@ -378,6 +376,9 @@ public:
 				buttons[i].button_state = BUTTON_STATE::UNPRESSED;
 				// rerender the button
 				render_button(i);
+
+				// call the buttons callback
+				(*buttons[i].callback)();
 			}
 		}
 	}
@@ -432,10 +433,10 @@ public:
 		static constexpr uint8_t sample_z = 0xB4;
 
 		// adc values from calibration on 20-11-2025
-		static uint16_t x_min = 180;
-		static uint16_t x_max = 1800;
-		static uint16_t y_min = 1850;
-		static uint16_t y_max = 110;
+		static uint16_t short_axis_min = 180;
+		static uint16_t short_axis_max = 1900;
+		static uint16_t long_axis_min = 180;
+		static uint16_t long_axis_max = 2000;
 
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0, GPIO_PIN_RESET); // select the touchscreen chip
 
@@ -446,9 +447,7 @@ public:
 
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0, GPIO_PIN_SET); // unselect the touchscreen chip
 
-
 		*x_in = ((buf[0] << 8) + buf[1]) >> 4;
-		*x_in = (uint16_t) ((float) (*x_in - x_min) * (float) SCREEN_WIDTH / (float) (x_max - x_min));
 
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0, GPIO_PIN_RESET); // select the touchscreen chip
 
@@ -459,7 +458,6 @@ public:
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0, GPIO_PIN_SET); // unselect the touchscreen chip
 
 		*y_in = ((buf[0] << 8) + buf[1]) >> 4;
-		*y_in = (uint16_t) ((float) (*y_in - y_min) * (float) SCREEN_HEIGHT / (float) (y_max - y_min));
 
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0, GPIO_PIN_RESET); // select the touchscreen chip
 
@@ -469,6 +467,37 @@ public:
 		*z_in = ((buf[0] << 8) + buf[1]) >> 4;
 
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0, GPIO_PIN_SET); // unselect the touchscreen chip
+
+		uint16_t shortAxisScaled = ((float) (*x_in - long_axis_min) / (float) (long_axis_max - long_axis_min) * (float) SCREEN_WIDTH);
+		uint16_t longAxisScaled = ((float) (*y_in - short_axis_min) / (float) (short_axis_max - short_axis_min) * (float) SCREEN_HEIGHT);
+
+		// clamp axis values to be in valid range
+		shortAxisScaled = std::max(static_cast<uint16_t>(0), shortAxisScaled);
+		shortAxisScaled = std::min(shortAxisScaled, static_cast<uint16_t>(SCREEN_WIDTH));
+		longAxisScaled = std::max(static_cast<uint16_t>(0), longAxisScaled);
+		longAxisScaled = std::min(longAxisScaled, static_cast<uint16_t>(SCREEN_HEIGHT));
+
+		// convert the touch coords to screen coords
+		static constexpr int orientation = 0;
+		switch (orientation) {
+		case 0:
+			*x_in = shortAxisScaled;
+			*y_in = longAxisScaled;
+			break;
+		case 1:
+			*x_in = longAxisScaled;
+			*y_in = shortAxisScaled;
+			break;
+		case 2:
+			*x_in = SCREEN_HEIGHT - shortAxisScaled;
+			*y_in = SCREEN_WIDTH - longAxisScaled;
+			break;
+		case 3:
+			*x_in = SCREEN_WIDTH - longAxisScaled;
+			*y_in = SCREEN_HEIGHT - shortAxisScaled;
+			break;
+		}
+
 	}
 
 	void draw_image_init(uint16_t x, uint16_t y, uint16_t w, uint16_t h){

@@ -354,6 +354,9 @@ public:
 	    // prevent check_prod() from using old file
 	    need_refill = false;
 
+	    //NEW SKIPPING: STOP PLAYBACK SO NO GLITCH
+	    stop_all();
+
 	    // Close the current file
 	    FRESULT fr = f_close(&audioFile);
 	    if (fr != FR_OK)

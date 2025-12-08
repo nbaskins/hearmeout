@@ -68,13 +68,14 @@ void input_callback(){
 
 void render_sd_gui(){
 	screen.clear();
+
 	screen.draw_button(15, 15, 200, 90, &pause_callback, "PAUSE");
 
 	screen.draw_button(15, 115, 200, 90, &play_callback, "PLAY");
 
 	screen.draw_button(15, 215, 200, 90, &skip_callback, "SKIP");
 
-	screen.draw_button(420, 15, 45, 45, &input_callback, nullptr);
+	screen.draw_button(230, 245, 235, 60, &input_callback, "AUX");
 }
 
 void render_jack_gui(){
@@ -83,7 +84,7 @@ void render_jack_gui(){
 
 	screen.draw_button(15, 115, 200, 90, &play_callback, "UNMUTE");
 
-	screen.draw_button(420, 15, 45, 45, &input_callback, nullptr);
+	screen.draw_button(230, 245, 235, 60, &input_callback, "SD CARD");
 }
 
 // main loop
@@ -144,20 +145,20 @@ void song_duration_callback(uint32_t current_song_duration, uint32_t prev_song_d
 
 // initialize program and start event_loop
 void init() {
-	gimbal.init(&htim4, &htim5, &huart2);
-	gimbal.request_pos();
-
-	jack.init(&hadc1, &hopamp2);
+//	gimbal.init(&htim4, &htim5, &huart2);
+//	gimbal.request_pos();
+//
+//	jack.init(&hadc1, &hopamp2);
 	screen.init(&hspi3, &hspi2, &htim3);
 
 	// we default to playing from the SD_Card
 	state = STATE::SD_CARD;
 	prev_state = STATE::SD_CARD;
 	render_sd_gui();
-
-	sd.init(&htim1, &htim2, &hdma_tim1_up, &song_finished_callback, &song_duration_callback);
-
-	event_loop();
+//
+//	sd.init(&htim1, &htim2, &hdma_tim1_up, &song_finished_callback, &song_duration_callback);
+//
+//	event_loop();
 }
 
 // HAL C functions
@@ -196,11 +197,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		screen.sample_x_y(&touch_x, &touch_y, &touch_z);
 		prev_z = alpha * touch_z + (1 - alpha) * prev_z;
 
-		if(interrupt_time - last_interrupt_time > TICKS_PER_FRAME){
-//			printf("Sampled %u %u %u\r\n", touch_x, touch_y, static_cast<uint16_t>(prev_z));
-			screen.check_buttons(touch_x, touch_y, prev_z);
-			last_interrupt_time = interrupt_time;
-		}
+		printf("Sampled %u %u %u\r\n", touch_x, touch_y, touch_z);
+
+		screen.check_buttons(touch_x, touch_y, prev_z);
+		last_interrupt_time = interrupt_time;
 	} else if (htim == &htim5) {
 		send_req = true;
 	}
