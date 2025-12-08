@@ -21,6 +21,7 @@ extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi3;
 extern ADC_HandleTypeDef hadc1;
 extern OPAMP_HandleTypeDef hopamp2;
+extern I2C_HandleTypeDef hi2c1;
 
 SD sd; // sd object used to handle updating CCR based on audio file
 Screen screen;
@@ -113,10 +114,20 @@ void event_loop() {
 				render_sd_gui();
 				sd.display_image(sd.get_song_name() + ".bmp", 272, 36, 152, 150, &screen);
 				sd.request_play();
+				// init the LED
+				uint8_t start_sd_card_led[] = {0x21};
+				uint8_t stop_aux_led[] = {0x30};
+				HAL_I2C_Master_Transmit(&hi2c1, (69 << 1), start_sd_card_led, sizeof(start_sd_card_led), (uint32_t)HAL_Delay);
+				HAL_I2C_Master_Transmit(&hi2c1, (69 << 1), stop_aux_led, sizeof(stop_aux_led), (uint32_t)HAL_Delay);
 			}else if(state == STATE::AUDIO_JACK){
 				render_jack_gui();
 				sd.display_image("0://aux.bmp", 272, 66, 152, 150, &screen);
 				jack.request_play();
+				// init the LED
+				uint8_t start_sd_card_led[] = {0x20};
+				uint8_t stop_aux_led[] = {0x31};
+				HAL_I2C_Master_Transmit(&hi2c1, (69 << 1), start_sd_card_led, sizeof(start_sd_card_led), (uint32_t)HAL_Delay);
+				HAL_I2C_Master_Transmit(&hi2c1, (69 << 1), stop_aux_led, sizeof(stop_aux_led), (uint32_t)HAL_Delay);
 			}
 		}
 		prev_state = state;
@@ -157,6 +168,14 @@ void init() {
 	render_sd_gui();
 
 	sd.init(&htim1, &htim2, &hdma_tim1_up, &song_finished_callback, &song_duration_callback);
+
+	// init the LED
+	uint8_t start_status_led[] = {0x11};
+	uint8_t clear_sd_card_led[] = {0x21};
+	uint8_t clear_aux_led[] = {0x30};
+	HAL_I2C_Master_Transmit(&hi2c1, (69 << 1), start_status_led, sizeof(start_status_led), (uint32_t)HAL_Delay);
+	HAL_I2C_Master_Transmit(&hi2c1, (69 << 1), clear_sd_card_led, sizeof(clear_sd_card_led), (uint32_t)HAL_Delay);
+	HAL_I2C_Master_Transmit(&hi2c1, (69 << 1), clear_aux_led, sizeof(clear_aux_led), (uint32_t)HAL_Delay);
 
 	event_loop();
 }

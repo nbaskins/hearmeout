@@ -355,7 +355,7 @@ public:
 	    need_refill = false;
 
 	    //NEW SKIPPING: STOP PLAYBACK SO NO GLITCH
-	    stop_all();
+	    pause();
 
 	    // Close the current file
 	    FRESULT fr = f_close(&audioFile);

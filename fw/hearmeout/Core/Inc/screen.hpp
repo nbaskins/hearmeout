@@ -421,12 +421,8 @@ public:
 						row_data <<= 1;
 					}
 				}
-
-				// increment for the next
-				base_x += FONT_SIZE * (FONT_WIDTH + FONT_SPACING);
 			}
-
-
+			base_x += FONT_SIZE * (FONT_WIDTH + FONT_SPACING);
 		}
 	}
 
