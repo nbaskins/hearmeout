@@ -111,7 +111,7 @@ void event_loop() {
 			sd.pause();
 			if(state == STATE::SD_CARD){
 				render_sd_gui();
-				sd.display_image(sd.get_song_name() + ".bmp", 272, 66, 152, 150, &screen);
+				sd.display_image(sd.get_song_name() + ".bmp", 272, 36, 152, 150, &screen);
 				sd.request_play();
 			}else if(state == STATE::AUDIO_JACK){
 				render_jack_gui();
@@ -134,31 +134,31 @@ void event_loop() {
 
 void song_finished_callback(){
 	printf("Song Finished\r\n");
-	sd.display_image(sd.get_song_name() + ".bmp", 272, 66, 152, 150, &screen);
+	sd.display_image(sd.get_song_name() + ".bmp", 272, 36, 152, 150, &screen);
 }
 
 void song_duration_callback(uint32_t current_song_duration, uint32_t prev_song_duration, uint32_t total_song_duration){
 	int pixel_percent = (int)(((float)current_song_duration/(float)total_song_duration) * 152);
-	screen.draw_box(272 + pixel_percent, 250, 152 - pixel_percent, 10, PROGRESS_BAR_BACKGROUND_R, PROGRESS_BAR_BACKGROUND_G, PROGRESS_BAR_BACKGROUND_B);
-	screen.draw_box(272, 250, pixel_percent, 10, PROGRESS_BAR_FOREGROUND_R, PROGRESS_BAR_FOREGROUND_G, PROGRESS_BAR_FOREGROUND_B);
+	screen.draw_box(272 + pixel_percent, 220, 152 - pixel_percent, 10, PROGRESS_BAR_BACKGROUND_R, PROGRESS_BAR_BACKGROUND_G, PROGRESS_BAR_BACKGROUND_B);
+	screen.draw_box(272, 220, pixel_percent, 10, PROGRESS_BAR_FOREGROUND_R, PROGRESS_BAR_FOREGROUND_G, PROGRESS_BAR_FOREGROUND_B);
 }
 
 // initialize program and start event_loop
 void init() {
-//	gimbal.init(&htim4, &htim5, &huart2);
-//	gimbal.request_pos();
-//
-//	jack.init(&hadc1, &hopamp2);
+	gimbal.init(&htim4, &htim5, &huart2);
+	gimbal.request_pos();
+
+	jack.init(&hadc1, &hopamp2);
 	screen.init(&hspi3, &hspi2, &htim3);
 
 	// we default to playing from the SD_Card
 	state = STATE::SD_CARD;
 	prev_state = STATE::SD_CARD;
 	render_sd_gui();
-//
-//	sd.init(&htim1, &htim2, &hdma_tim1_up, &song_finished_callback, &song_duration_callback);
-//
-//	event_loop();
+
+	sd.init(&htim1, &htim2, &hdma_tim1_up, &song_finished_callback, &song_duration_callback);
+
+	event_loop();
 }
 
 // HAL C functions
@@ -183,7 +183,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim == &htim3) {
 		static float prev_z = 0;
-		static constexpr float alpha = 0.15;
+		static constexpr float alpha = 0.3;
 
 		// frame rate controls
 		static constexpr unsigned long TICKS_PER_FRAME = 500;

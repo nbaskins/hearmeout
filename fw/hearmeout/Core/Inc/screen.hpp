@@ -108,7 +108,7 @@ private:
 
 		// check the status
 		if(status != HAL_OK){
-			printf("Error Occured while sending SPI command\r\n");
+//			printf("Error Occured while sending SPI command\r\n");
 		}
 
 		// deselect the touchscreen chip
@@ -130,7 +130,7 @@ private:
 
 		// check the status
 		if(status != HAL_OK){
-			printf("Error Occured while sending SPI data\r\n");
+//			printf("Error Occured while sending SPI data\r\n");
 		}
 
 
@@ -388,41 +388,45 @@ public:
 		// loop through all of the characters in the string
 		for(int idx = 0; idx < str_len; ++idx){
 
-			uint8_t* char_ptr = &font[(str[idx] - 'A') * FONT_HEIGHT];
+			if(str[idx] != ' '){
+				uint8_t* char_ptr = &font[(str[idx] - 'A') * FONT_HEIGHT];
 
-			// loop through all of the rows in a character
-			for(int row = 0; row < FONT_HEIGHT; ++row){
-				uint8_t row_data = char_ptr[row];
-				for(int col = 0; col < FONT_WIDTH; ++col){
-					// if there is a pixel to draw, draw it
-					if((row_data & 0x80) == 0x80){
-						// draw the button on the screen
-						uint16_t px = base_x + FONT_SIZE * col;
-						uint8_t caset[] = {static_cast<uint8_t>((px >> 8) & 0xFF), static_cast<uint8_t>(px & 0xFF), static_cast<uint8_t>(((px + FONT_SIZE - 1) >> 8) & 0xFF), static_cast<uint8_t>((px + FONT_SIZE - 1) & 0xFF)};
-						send_cmd(SCREEN_CMD::CASET);
-						send_data(caset, sizeof(caset));
+				// loop through all of the rows in a character
+				for(int row = 0; row < FONT_HEIGHT; ++row){
+					uint8_t row_data = char_ptr[row];
+					for(int col = 0; col < FONT_WIDTH; ++col){
+						// if there is a pixel to draw, draw it
+						if((row_data & 0x80) == 0x80){
+							// draw the button on the screen
+							uint16_t px = base_x + FONT_SIZE * col;
+							uint8_t caset[] = {static_cast<uint8_t>((px >> 8) & 0xFF), static_cast<uint8_t>(px & 0xFF), static_cast<uint8_t>(((px + FONT_SIZE - 1) >> 8) & 0xFF), static_cast<uint8_t>((px + FONT_SIZE - 1) & 0xFF)};
+							send_cmd(SCREEN_CMD::CASET);
+							send_data(caset, sizeof(caset));
 
-						uint16_t py = base_y + FONT_SIZE * row;
-						uint8_t paset[] = {static_cast<uint8_t>((py >> 8) & 0xFF), static_cast<uint8_t>(py & 0xFF), static_cast<uint8_t>(((py + FONT_SIZE - 1) >> 8) & 0xFF), static_cast<uint8_t>((py + FONT_SIZE - 1) & 0xFF)};
-						send_cmd(SCREEN_CMD::PASET);
-						send_data(paset, sizeof(paset));
+							uint16_t py = base_y + FONT_SIZE * row;
+							uint8_t paset[] = {static_cast<uint8_t>((py >> 8) & 0xFF), static_cast<uint8_t>(py & 0xFF), static_cast<uint8_t>(((py + FONT_SIZE - 1) >> 8) & 0xFF), static_cast<uint8_t>((py + FONT_SIZE - 1) & 0xFF)};
+							send_cmd(SCREEN_CMD::PASET);
+							send_data(paset, sizeof(paset));
 
-						unsigned int num_pixels = FONT_SIZE * FONT_SIZE;
-						uint8_t font_rgb[] = {FONT_R, FONT_G, FONT_B};
-						send_cmd(SCREEN_CMD::RAMWR);
+							unsigned int num_pixels = FONT_SIZE * FONT_SIZE;
+							uint8_t font_rgb[] = {FONT_R, FONT_G, FONT_B};
+							send_cmd(SCREEN_CMD::RAMWR);
 
-						for(unsigned int i = 0; i < num_pixels; ++i){
-							send_data(font_rgb, sizeof(font_rgb));
+							for(unsigned int i = 0; i < num_pixels; ++i){
+								send_data(font_rgb, sizeof(font_rgb));
+							}
 						}
-					}
 
-					// shift to get the next pixel in the font
-					row_data <<= 1;
+						// shift to get the next pixel in the font
+						row_data <<= 1;
+					}
 				}
+
+				// increment for the next
+				base_x += FONT_SIZE * (FONT_WIDTH + FONT_SPACING);
 			}
 
-			// increment for the next
-			base_x += FONT_SIZE * (FONT_WIDTH + FONT_SPACING);
+
 		}
 	}
 
