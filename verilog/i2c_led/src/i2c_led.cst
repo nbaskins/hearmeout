@@ -1,0 +1,19 @@
+IO_LOC "btn_a" 13;
+
+IO_LOC "led_r" 31;
+IO_LOC "led_g" 30;
+IO_LOC "led_b" 29;
+
+IO_LOC "sda_i" 19;
+IO_LOC "sda_o" 20;
+
+IO_LOC "scl_i" 34;
+IO_LOC "scl_o" 35;
+
+IO_LOC "state0" 28;
+IO_LOC "state1" 27;
+
+IO_LOC "dbg0" 15;
+IO_LOC "dbg1" 16;
+IO_LOC "dbg2" 17;
+IO_LOC "dbg3" 18;

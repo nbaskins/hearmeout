@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module name="i2c_led" Register="33" Lut="64" T_Register="33(33)" T_Lut="64(64)">
+ <SubModule name="gowin_osc"/>
+</Module>

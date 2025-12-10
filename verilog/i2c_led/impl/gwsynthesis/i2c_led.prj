@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gowin-synthesis-project>
+<Project>
+    <Version>beta</Version>
+    <Device id="GW1NZ-1" package="QFN48" speed="6" partNumber="GW1NZ-LV1QN48C6/I5"/>
+    <FileList>
+        <File path="C:\Gowin\Gowin_V1.9.11.03_Education_x64\IDE\bin\Documents\i2c_led\src\i2c_led.sv" type="verilog"/>
+        <File path="C:\Gowin\Gowin_V1.9.11.03_Education_x64\IDE\bin\Documents\i2c_led\src\gowin_osc\gowin_osc.v" type="verilog"/>
+    </FileList>
+    <OptionList>
+        <Option type="disable_insert_pad" value="0"/>
+        <Option type="global_freq" value="0.100"/>
+        <Option type="looplimit" value="2000"/>
+        <Option type="output_file" value="C:\Gowin\Gowin_V1.9.11.03_Education_x64\IDE\bin\Documents\i2c_led\impl\gwsynthesis\i2c_led.vg"/>
+        <Option type="print_all_synthesis_warning" value="0"/>
+        <Option type="ram_rw_check" value="0"/>
+        <Option type="top_module" value="i2c_led"/>
+        <Option type="vcc" value="1.2"/>
+        <Option type="verilog_language" value="sysv-2017"/>
+        <Option type="vhdl_language" value="vhdl-1993"/>
+    </OptionList>
+</Project>

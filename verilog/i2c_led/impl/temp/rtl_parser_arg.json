@@ -1,0 +1,21 @@
+{
+ "Device" : "GW1NZ-1",
+ "Files" : [
+  {
+   "Path" : "C:/Gowin/Gowin_V1.9.11.03_Education_x64/IDE/bin/Documents/i2c_led/src/gowin_osc/gowin_osc.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Gowin/Gowin_V1.9.11.03_Education_x64/IDE/bin/Documents/i2c_led/src/i2c_led.sv",
+   "Type" : "verilog"
+  }
+ ],
+ "IncludePath" : [
+
+ ],
+ "LoopLimit" : 2000,
+ "ResultFile" : "C:/Gowin/Gowin_V1.9.11.03_Education_x64/IDE/bin/Documents/i2c_led/impl/temp/rtl_parser.result",
+ "Top" : "i2c_led",
+ "VerilogStd" : "sysv",
+ "VhdlStd" : "vhdl_93"
+}

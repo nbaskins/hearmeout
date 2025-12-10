@@ -1,0 +1,20 @@
+[
+ {
+  "InstFile" : "C:/Gowin/Gowin_V1.9.11.03_Education_x64/IDE/bin/Documents/i2c_led/src/i2c_led.sv",
+  "InstLine" : 3,
+  "InstName" : "i2c_led",
+  "ModuleFile" : "C:/Gowin/Gowin_V1.9.11.03_Education_x64/IDE/bin/Documents/i2c_led/src/i2c_led.sv",
+  "ModuleLine" : 3,
+  "ModuleName" : "i2c_led",
+  "SubInsts" : [
+   {
+    "InstFile" : "C:/Gowin/Gowin_V1.9.11.03_Education_x64/IDE/bin/Documents/i2c_led/src/i2c_led.sv",
+    "InstLine" : 27,
+    "InstName" : "gowin_osc",
+    "ModuleFile" : "C:/Gowin/Gowin_V1.9.11.03_Education_x64/IDE/bin/Documents/i2c_led/src/gowin_osc/gowin_osc.v",
+    "ModuleLine" : 9,
+    "ModuleName" : "Gowin_OSC"
+   }
+  ]
+ }
+]
